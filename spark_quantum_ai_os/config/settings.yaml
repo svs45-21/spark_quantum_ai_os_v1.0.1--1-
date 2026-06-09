@@ -1,0 +1,79 @@
+spark:
+  name: "SPARK QUANTUM AI OS"
+  version: "1.0.1"
+  user:
+    name: "Mr. Shree Ranjan"
+    nickname: "Vayala"
+  wake_word: "spark"
+  log_level: "INFO"
+  admin_mode: true
+
+models:
+  default: "ollama"
+  routing:
+    simple: "ollama/llama3"
+    coding: "ollama/codellama"
+    research: "openai/gpt-4o"
+    vision: "openai/gpt-4o"
+    reasoning: "claude/claude-opus-4"
+  providers:
+    openai:
+      api_key: "${OPENAI_API_KEY}"
+      base_url: "https://api.openai.com/v1"
+    anthropic:
+      api_key: "${ANTHROPIC_API_KEY}"
+    gemini:
+      api_key: "${GEMINI_API_KEY}"
+    ollama:
+      base_url: "http://localhost:11434"
+
+memory:
+  short_term:
+    max_tokens: 8000
+    ttl_seconds: 3600
+  long_term:
+    db_path: "data/long_term.db"
+  vector:
+    db_path: "data/chroma"
+    collection: "spark_memory"
+  knowledge_graph:
+    db_path: "data/knowledge.db"
+
+voice:
+  whisper_model: "base"
+  wake_word_sensitivity: 0.5
+  language: "en"
+  tts_engine: "pyttsx3"
+  sample_rate: 16000
+
+vision:
+  webcam_index: 0
+  screenshot_interval: 2
+  ocr_engine: "tesseract"
+
+desktop:
+  require_confirmation: true
+  screenshot_on_action: true
+  action_delay_ms: 300
+
+browser:
+  engine: "playwright"
+  headless: false
+  timeout_ms: 30000
+
+security:
+  require_approval:
+    - "file_delete"
+    - "send_message"
+    - "execute_code"
+    - "shutdown"
+    - "browser_form_submit"
+  audit_log: "logs/audit.log"
+  rbac_enabled: true
+
+ui:
+  theme: "dark"
+  font_size: 13
+  window_width: 1400
+  window_height: 900
+  accent_color: "#00D4FF"

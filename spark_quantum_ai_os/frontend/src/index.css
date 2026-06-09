@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply text-white m-0 p-0 overflow-hidden font-sans bg-transparent;
+  }
+}
+
+.glass-panel {
+  @apply bg-glassWhite backdrop-blur-md border border-glassBorder rounded-2xl shadow-lg;
+}
+
+.text-neon {
+  @apply text-neonCyan drop-shadow-[0_0_8px_rgba(0,212,255,0.8)];
+}

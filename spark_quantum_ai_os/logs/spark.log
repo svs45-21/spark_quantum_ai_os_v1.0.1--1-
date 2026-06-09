@@ -1,0 +1,879 @@
+2026-06-09 13:55:06,476 | WARNING  | spark.main |   ○ Not Administrator — some features limited. Right-click spark.bat → Run as Administrator.
+2026-06-09 13:55:06,477 | INFO     | spark.main | ==============================================================
+2026-06-09 13:55:06,477 | INFO     | spark.main |   SPARK QUANTUM AI OS v1.0.1 — Booting
+2026-06-09 13:55:06,477 | INFO     | spark.main | ==============================================================
+2026-06-09 13:55:06,604 | INFO     | spark.main |   User     : Mr. Shree Ranjan  (Vayala)
+2026-06-09 13:55:06,607 | INFO     | spark.main |   ✓ Event bus
+2026-06-09 13:55:06,629 | INFO     | spark.main |   ✓ Security
+2026-06-09 13:55:07,385 | INFO     | spark.memory | VectorMemory initialized at data/chroma
+2026-06-09 13:55:07,386 | INFO     | spark.memory | MemoryManager initialized
+2026-06-09 13:55:07,386 | INFO     | spark.main |   ✓ Memory
+2026-06-09 13:55:08,561 | INFO     | spark.router | OpenAI client initialized
+2026-06-09 13:55:08,756 | INFO     | spark.router | Anthropic client initialized
+2026-06-09 13:55:08,757 | INFO     | spark.main |   ✓ Model provider: openai
+2026-06-09 13:55:08,757 | INFO     | spark.main |   ✓ Model provider: anthropic
+2026-06-09 13:55:08,757 | INFO     | spark.main |   ✓ Model provider: ollama
+2026-06-09 13:55:08,810 | INFO     | spark.registry | Registered agent: executive_agent
+2026-06-09 13:55:09,740 | INFO     | spark.desktop | PyAutoGUI initialized
+2026-06-09 13:55:09,743 | INFO     | spark.registry | Registered agent: desktop_agent
+2026-06-09 13:55:09,748 | INFO     | spark.vision | Tesseract OCR initialized
+2026-06-09 13:55:09,748 | INFO     | spark.registry | Registered agent: vision_agent
+2026-06-09 13:55:09,748 | INFO     | spark.registry | Registered agent: browser_agent
+2026-06-09 13:55:09,748 | INFO     | spark.registry | Registered agent: document_agent
+2026-06-09 13:55:09,748 | INFO     | spark.registry | Registered agent: research_agent
+2026-06-09 13:55:09,749 | INFO     | spark.registry | Registered agent: coding_agent
+2026-06-09 13:55:09,749 | INFO     | spark.registry | Registered agent: whatsapp_agent
+2026-06-09 13:55:09,749 | INFO     | spark.registry | Registered agent: personal_assistant
+2026-06-09 13:55:09,750 | INFO     | spark.registry | Registered agent: monitoring_agent
+2026-06-09 13:55:09,753 | INFO     | spark.agents.executive_agent | Starting executive_agent
+2026-06-09 13:55:09,753 | INFO     | spark.executive | Executive Agent initialized
+2026-06-09 13:55:09,753 | INFO     | spark.agents.desktop_agent | Starting desktop_agent
+2026-06-09 13:55:09,754 | INFO     | spark.agents.vision_agent | Starting vision_agent
+2026-06-09 13:55:10,677 | INFO     | spark.vision | Webcam 0 opened
+2026-06-09 13:55:10,677 | INFO     | spark.agents.browser_agent | Starting browser_agent
+2026-06-09 13:55:11,103 | INFO     | spark.events | EventBus running
+2026-06-09 13:55:12,996 | ERROR    | spark.browser | Browser start failed: BrowserType.launch: Executable doesn't exist at C:\Users\shree\AppData\Local\ms-playwright\chromium-1223\chrome-win64\chrome.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     playwright install                                     ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+2026-06-09 13:55:12,997 | INFO     | spark.agents.document_agent | Starting document_agent
+2026-06-09 13:55:12,997 | INFO     | spark.agents.research_agent | Starting research_agent
+2026-06-09 13:55:12,997 | INFO     | spark.agents.coding_agent | Starting coding_agent
+2026-06-09 13:55:12,997 | INFO     | spark.agents.whatsapp_agent | Starting whatsapp_agent
+2026-06-09 13:55:12,997 | INFO     | spark.agents.personal_assistant | Starting personal_assistant
+2026-06-09 13:55:12,997 | INFO     | spark.agents.monitoring_agent | Starting monitoring_agent
+2026-06-09 13:55:12,997 | INFO     | spark.monitoring | Monitoring agent initialized
+2026-06-09 13:55:12,998 | INFO     | spark.registry | Started 10 agents
+2026-06-09 13:55:12,998 | INFO     | spark.main |   ✓ 10 agents started
+2026-06-09 13:55:12,998 | INFO     | spark.main | 
+Good Afternoon Mr. Shree Ranjan.
+Welcome back Vayala.
+All systems operational.
+How may I assist you today?
+
+2026-06-09 13:55:18,014 | INFO     | spark.agents.monitoring_agent | Task assigned: watch_resource [b753289b]
+2026-06-09 13:55:18,015 | INFO     | spark.agents.monitoring_agent | Executing task: watch_resource
+2026-06-09 13:55:18,015 | INFO     | spark.agents.monitoring_agent | Task completed: watch_resource in 0.00s
+2026-06-09 13:55:18,017 | INFO     | spark.monitoring | Resource watch started (every 60s)
+2026-06-09 13:56:01,540 | INFO     | spark.executive | Executive received command: hi
+2026-06-09 13:56:01,540 | INFO     | spark.agents.executive_agent | Task assigned: process_command [1821d3db]
+2026-06-09 13:56:01,540 | INFO     | spark.agents.executive_agent | Executing task: process_command
+2026-06-09 13:56:01,540 | INFO     | spark.router | Routing reasoning → anthropic/claude-opus-4-5
+2026-06-09 13:56:02,143 | INFO     | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 400 Bad Request"
+2026-06-09 13:56:02,144 | WARNING  | spark.router | anthropic failed (Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CbsNFqCgqVedhyN1MEo1P'}), falling back to ollama
+2026-06-09 13:56:04,585 | ERROR    | spark.executive | Planning failed: All connection attempts failed
+Traceback (most recent call last):
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpx\_transports\default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpx\_transports\default.py", line 394, in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpcore\_async\connection_pool.py", line 256, in handle_async_request
+    raise exc from None
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpcore\_async\connection_pool.py", line 236, in handle_async_request
+    response = await connection.handle_async_request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpcore\_async\connection.py", line 101, in handle_async_request
+    raise exc
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpcore\_async\connection.py", line 78, in handle_async_request
+    stream = await self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpcore\_async\connection.py", line 124, in _connect
+    stream = await self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpcore\_backends\auto.py", line 31, in connect_tcp
+    return await self._backend.connect_tcp(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpcore\_backends\anyio.py", line 113, in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpcore\_exceptions.py", line 14, in map_exceptions
+    raise to_exc(exc) from exc
+httpcore.ConnectError: All connection attempts failed
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\agents\executive\executive_agent.py", line 108, in _plan
+    response = await self._router.complete(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\core\router\model_router.py", line 100, in complete
+    return await self._ollama_complete(messages, model, temperature, max_tokens, system)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\core\router\model_router.py", line 127, in _ollama_complete
+    response = await client.post(
+               ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpx\_client.py", line 1859, in post
+    return await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpx\_client.py", line 1540, in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpx\_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpx\_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpx\_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpx\_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpx\_transports\default.py", line 393, in handle_async_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpx\_transports\default.py", line 118, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.ConnectError: All connection attempts failed
+2026-06-09 13:56:04,588 | INFO     | spark.agents.executive_agent | Task completed: process_command in 3.05s
+2026-06-09 13:57:06,856 | INFO     | spark.executive | Executive received command: spark
+2026-06-09 13:57:06,856 | INFO     | spark.agents.executive_agent | Task assigned: process_command [7cb5a19e]
+2026-06-09 13:57:06,856 | INFO     | spark.agents.executive_agent | Executing task: process_command
+2026-06-09 13:57:06,856 | INFO     | spark.router | Routing reasoning → anthropic/claude-opus-4-5
+2026-06-09 13:57:07,272 | INFO     | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 400 Bad Request"
+2026-06-09 13:57:07,275 | WARNING  | spark.router | anthropic failed (Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CbsNLdwQZmQq4eLd9PWHS'}), falling back to ollama
+2026-06-09 13:57:09,742 | ERROR    | spark.executive | Planning failed: All connection attempts failed
+Traceback (most recent call last):
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpx\_transports\default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpx\_transports\default.py", line 394, in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpcore\_async\connection_pool.py", line 256, in handle_async_request
+    raise exc from None
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpcore\_async\connection_pool.py", line 236, in handle_async_request
+    response = await connection.handle_async_request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpcore\_async\connection.py", line 101, in handle_async_request
+    raise exc
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpcore\_async\connection.py", line 78, in handle_async_request
+    stream = await self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpcore\_async\connection.py", line 124, in _connect
+    stream = await self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpcore\_backends\auto.py", line 31, in connect_tcp
+    return await self._backend.connect_tcp(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpcore\_backends\anyio.py", line 113, in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpcore\_exceptions.py", line 14, in map_exceptions
+    raise to_exc(exc) from exc
+httpcore.ConnectError: All connection attempts failed
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\agents\executive\executive_agent.py", line 108, in _plan
+    response = await self._router.complete(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\core\router\model_router.py", line 100, in complete
+    return await self._ollama_complete(messages, model, temperature, max_tokens, system)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\core\router\model_router.py", line 127, in _ollama_complete
+    response = await client.post(
+               ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpx\_client.py", line 1859, in post
+    return await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpx\_client.py", line 1540, in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpx\_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpx\_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpx\_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpx\_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpx\_transports\default.py", line 393, in handle_async_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shree\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\venv\Lib\site-packages\httpx\_transports\default.py", line 118, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.ConnectError: All connection attempts failed
+2026-06-09 13:57:09,742 | INFO     | spark.agents.executive_agent | Task completed: process_command in 2.89s
+2026-06-09 13:57:19,685 | INFO     | spark.agents.executive_agent | Stopped executive_agent
+2026-06-09 13:57:19,685 | INFO     | spark.agents.desktop_agent | Stopped desktop_agent
+2026-06-09 13:57:19,699 | INFO     | spark.agents.vision_agent | Stopped vision_agent
+2026-06-09 13:57:59,303 | WARNING  | spark.main |   ○ Not Administrator — some features limited. Right-click spark.bat → Run as Administrator.
+2026-06-09 13:57:59,304 | INFO     | spark.main | ==============================================================
+2026-06-09 13:57:59,304 | INFO     | spark.main |   SPARK QUANTUM AI OS v1.0.1 — Booting
+2026-06-09 13:57:59,304 | INFO     | spark.main | ==============================================================
+2026-06-09 13:57:59,427 | INFO     | spark.main |   User     : Mr. Shree Ranjan  (Vayala)
+2026-06-09 13:57:59,429 | INFO     | spark.main |   ✓ Event bus
+2026-06-09 13:57:59,436 | INFO     | spark.main |   ✓ Security
+2026-06-09 13:58:00,140 | INFO     | spark.memory | VectorMemory initialized at data/chroma
+2026-06-09 13:58:00,140 | INFO     | spark.memory | MemoryManager initialized
+2026-06-09 13:58:00,140 | INFO     | spark.main |   ✓ Memory
+2026-06-09 13:58:01,122 | INFO     | spark.router | OpenAI client initialized
+2026-06-09 13:58:01,296 | INFO     | spark.router | Anthropic client initialized
+2026-06-09 13:58:01,297 | INFO     | spark.main |   ✓ Model provider: openai
+2026-06-09 13:58:01,297 | INFO     | spark.main |   ✓ Model provider: anthropic
+2026-06-09 13:58:01,297 | INFO     | spark.main |   ✓ Model provider: ollama
+2026-06-09 13:58:01,311 | INFO     | spark.registry | Registered agent: executive_agent
+2026-06-09 13:58:01,384 | INFO     | spark.desktop | PyAutoGUI initialized
+2026-06-09 13:58:01,388 | INFO     | spark.registry | Registered agent: desktop_agent
+2026-06-09 13:58:01,392 | INFO     | spark.vision | Tesseract OCR initialized
+2026-06-09 13:58:01,392 | INFO     | spark.registry | Registered agent: vision_agent
+2026-06-09 13:58:01,392 | INFO     | spark.registry | Registered agent: browser_agent
+2026-06-09 13:58:01,392 | INFO     | spark.registry | Registered agent: document_agent
+2026-06-09 13:58:01,393 | INFO     | spark.registry | Registered agent: research_agent
+2026-06-09 13:58:01,393 | INFO     | spark.registry | Registered agent: coding_agent
+2026-06-09 13:58:01,393 | INFO     | spark.registry | Registered agent: whatsapp_agent
+2026-06-09 13:58:01,393 | INFO     | spark.registry | Registered agent: personal_assistant
+2026-06-09 13:58:01,393 | INFO     | spark.registry | Registered agent: monitoring_agent
+2026-06-09 13:58:01,395 | INFO     | spark.agents.executive_agent | Starting executive_agent
+2026-06-09 13:58:01,396 | INFO     | spark.executive | Executive Agent initialized
+2026-06-09 13:58:01,396 | INFO     | spark.agents.desktop_agent | Starting desktop_agent
+2026-06-09 13:58:01,396 | INFO     | spark.agents.vision_agent | Starting vision_agent
+2026-06-09 13:58:02,295 | INFO     | spark.vision | Webcam 0 opened
+2026-06-09 13:58:02,296 | INFO     | spark.agents.browser_agent | Starting browser_agent
+2026-06-09 13:58:02,332 | INFO     | spark.events | EventBus running
+2026-06-09 13:58:02,634 | ERROR    | spark.browser | Browser start failed: BrowserType.launch: Executable doesn't exist at C:\Users\shree\AppData\Local\ms-playwright\chromium-1223\chrome-win64\chrome.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     playwright install                                     ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+2026-06-09 13:58:02,636 | INFO     | spark.agents.document_agent | Starting document_agent
+2026-06-09 13:58:02,636 | INFO     | spark.agents.research_agent | Starting research_agent
+2026-06-09 13:58:02,636 | INFO     | spark.agents.coding_agent | Starting coding_agent
+2026-06-09 13:58:02,636 | INFO     | spark.agents.whatsapp_agent | Starting whatsapp_agent
+2026-06-09 13:58:02,636 | INFO     | spark.agents.personal_assistant | Starting personal_assistant
+2026-06-09 13:58:02,636 | INFO     | spark.agents.monitoring_agent | Starting monitoring_agent
+2026-06-09 13:58:02,637 | INFO     | spark.monitoring | Monitoring agent initialized
+2026-06-09 13:58:02,637 | INFO     | spark.registry | Started 10 agents
+2026-06-09 13:58:02,637 | INFO     | spark.main |   ✓ 10 agents started
+2026-06-09 13:58:02,638 | INFO     | spark.main | 
+Good Afternoon Mr. Shree Ranjan.
+Welcome back Vayala.
+All systems operational.
+How may I assist you today?
+
+2026-06-09 13:58:03,661 | INFO     | spark.main | API server starting on http://0.0.0.0:8765  (docs: /docs)
+2026-06-09 13:58:07,631 | INFO     | spark.agents.monitoring_agent | Task assigned: watch_resource [c5fce375]
+2026-06-09 13:58:07,633 | INFO     | spark.agents.monitoring_agent | Executing task: watch_resource
+2026-06-09 13:58:07,633 | INFO     | spark.agents.monitoring_agent | Task completed: watch_resource in 0.00s
+2026-06-09 13:58:07,634 | INFO     | spark.monitoring | Resource watch started (every 60s)
+2026-06-09 14:02:36,616 | WARNING  | spark.main |   ○ Not Administrator — some features limited. Right-click spark.bat → Run as Administrator.
+2026-06-09 14:02:36,617 | INFO     | spark.main | ==============================================================
+2026-06-09 14:02:36,617 | INFO     | spark.main |   SPARK QUANTUM AI OS v1.0.1 — Booting
+2026-06-09 14:02:36,617 | INFO     | spark.main | ==============================================================
+2026-06-09 14:02:36,765 | INFO     | spark.main |   User     : Mr. Shree Ranjan  (Vayala)
+2026-06-09 14:02:36,770 | INFO     | spark.main |   ✓ Event bus
+2026-06-09 14:02:36,778 | INFO     | spark.main |   ✓ Security
+2026-06-09 14:02:37,492 | INFO     | spark.memory | VectorMemory initialized at data/chroma
+2026-06-09 14:02:37,492 | INFO     | spark.memory | MemoryManager initialized
+2026-06-09 14:02:37,492 | INFO     | spark.main |   ✓ Memory
+2026-06-09 14:02:38,543 | INFO     | spark.router | OpenAI client initialized
+2026-06-09 14:02:38,745 | INFO     | spark.router | Anthropic client initialized
+2026-06-09 14:02:38,745 | INFO     | spark.main |   ✓ Model provider: openai
+2026-06-09 14:02:38,745 | INFO     | spark.main |   ✓ Model provider: anthropic
+2026-06-09 14:02:38,745 | INFO     | spark.main |   ✓ Model provider: ollama
+2026-06-09 14:02:38,758 | INFO     | spark.registry | Registered agent: executive_agent
+2026-06-09 14:02:38,837 | INFO     | spark.desktop | PyAutoGUI initialized
+2026-06-09 14:02:38,842 | INFO     | spark.registry | Registered agent: desktop_agent
+2026-06-09 14:02:38,846 | INFO     | spark.vision | Tesseract OCR initialized
+2026-06-09 14:02:38,846 | INFO     | spark.registry | Registered agent: vision_agent
+2026-06-09 14:02:38,846 | INFO     | spark.registry | Registered agent: browser_agent
+2026-06-09 14:02:38,846 | INFO     | spark.registry | Registered agent: document_agent
+2026-06-09 14:02:38,847 | INFO     | spark.registry | Registered agent: research_agent
+2026-06-09 14:02:38,847 | INFO     | spark.registry | Registered agent: coding_agent
+2026-06-09 14:02:38,847 | INFO     | spark.registry | Registered agent: whatsapp_agent
+2026-06-09 14:02:38,847 | INFO     | spark.registry | Registered agent: personal_assistant
+2026-06-09 14:02:38,847 | INFO     | spark.registry | Registered agent: monitoring_agent
+2026-06-09 14:02:38,850 | INFO     | spark.agents.executive_agent | Starting executive_agent
+2026-06-09 14:02:38,851 | INFO     | spark.executive | Executive Agent initialized
+2026-06-09 14:02:38,851 | INFO     | spark.agents.desktop_agent | Starting desktop_agent
+2026-06-09 14:02:38,851 | INFO     | spark.agents.vision_agent | Starting vision_agent
+2026-06-09 14:02:39,740 | INFO     | spark.vision | Webcam 0 opened
+2026-06-09 14:02:39,740 | INFO     | spark.agents.browser_agent | Starting browser_agent
+2026-06-09 14:02:39,777 | INFO     | spark.events | EventBus running
+2026-06-09 14:02:40,100 | ERROR    | spark.browser | Browser start failed: BrowserType.launch: Executable doesn't exist at C:\Users\shree\AppData\Local\ms-playwright\chromium-1223\chrome-win64\chrome.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     playwright install                                     ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+2026-06-09 14:02:40,101 | INFO     | spark.agents.document_agent | Starting document_agent
+2026-06-09 14:02:40,101 | INFO     | spark.agents.research_agent | Starting research_agent
+2026-06-09 14:02:40,101 | INFO     | spark.agents.coding_agent | Starting coding_agent
+2026-06-09 14:02:40,101 | INFO     | spark.agents.whatsapp_agent | Starting whatsapp_agent
+2026-06-09 14:02:40,101 | INFO     | spark.agents.personal_assistant | Starting personal_assistant
+2026-06-09 14:02:40,101 | INFO     | spark.agents.monitoring_agent | Starting monitoring_agent
+2026-06-09 14:02:40,102 | INFO     | spark.monitoring | Monitoring agent initialized
+2026-06-09 14:02:40,102 | INFO     | spark.registry | Started 10 agents
+2026-06-09 14:02:40,102 | INFO     | spark.main |   ✓ 10 agents started
+2026-06-09 14:02:40,102 | INFO     | spark.main | 
+Good Afternoon Mr. Shree Ranjan.
+Welcome back Vayala.
+All systems operational.
+How may I assist you today?
+
+2026-06-09 14:02:40,296 | INFO     | spark.main | API server starting on http://0.0.0.0:8765  (docs: /docs)
+2026-06-09 14:02:45,111 | INFO     | spark.agents.monitoring_agent | Task assigned: watch_resource [8a280a8b]
+2026-06-09 14:02:45,111 | INFO     | spark.agents.monitoring_agent | Executing task: watch_resource
+2026-06-09 14:02:45,112 | INFO     | spark.agents.monitoring_agent | Task completed: watch_resource in 0.00s
+2026-06-09 14:02:45,112 | INFO     | spark.monitoring | Resource watch started (every 60s)
+2026-06-09 14:05:22,414 | INFO     | spark.main |   ✓ Running as Administrator
+2026-06-09 14:05:22,416 | INFO     | spark.main | ==============================================================
+2026-06-09 14:05:22,417 | INFO     | spark.main |   SPARK QUANTUM AI OS v1.0.1 — Booting
+2026-06-09 14:05:22,417 | INFO     | spark.main | ==============================================================
+2026-06-09 14:05:22,425 | ERROR    | spark.main | Boot failed: No module named 'yaml'
+Traceback (most recent call last):
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\main.py", line 273, in main
+    ctx = loop.run_until_complete(boot_subsystems())
+  File "C:\Users\shree\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 719, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\main.py", line 45, in boot_subsystems
+    from core.settings import get_settings
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\core\settings.py", line 12, in <module>
+    import yaml
+ModuleNotFoundError: No module named 'yaml'
+2026-06-09 14:06:52,855 | INFO     | spark.main |   ✓ Running as Administrator
+2026-06-09 14:06:52,857 | INFO     | spark.main | ==============================================================
+2026-06-09 14:06:52,857 | INFO     | spark.main |   SPARK QUANTUM AI OS v1.0.1 — Booting
+2026-06-09 14:06:52,857 | INFO     | spark.main | ==============================================================
+2026-06-09 14:06:52,862 | ERROR    | spark.main | Boot failed: No module named 'yaml'
+Traceback (most recent call last):
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\main.py", line 273, in main
+    ctx = loop.run_until_complete(boot_subsystems())
+  File "C:\Users\shree\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 719, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\main.py", line 45, in boot_subsystems
+    from core.settings import get_settings
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\core\settings.py", line 12, in <module>
+    import yaml
+ModuleNotFoundError: No module named 'yaml'
+2026-06-09 14:07:12,051 | INFO     | spark.main |   ✓ Running as Administrator
+2026-06-09 14:07:12,053 | INFO     | spark.main | ==============================================================
+2026-06-09 14:07:12,053 | INFO     | spark.main |   SPARK QUANTUM AI OS v1.0.1 — Booting
+2026-06-09 14:07:12,053 | INFO     | spark.main | ==============================================================
+2026-06-09 14:07:12,059 | ERROR    | spark.main | Boot failed: No module named 'yaml'
+Traceback (most recent call last):
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\main.py", line 273, in main
+    ctx = loop.run_until_complete(boot_subsystems())
+  File "C:\Users\shree\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 719, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\main.py", line 45, in boot_subsystems
+    from core.settings import get_settings
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\core\settings.py", line 12, in <module>
+    import yaml
+ModuleNotFoundError: No module named 'yaml'
+2026-06-09 14:11:50,706 | INFO     | spark.main |   ✓ Running as Administrator
+2026-06-09 14:11:50,707 | INFO     | spark.main | ==============================================================
+2026-06-09 14:11:50,708 | INFO     | spark.main |   SPARK QUANTUM AI OS v1.0.1 — Booting
+2026-06-09 14:11:50,708 | INFO     | spark.main | ==============================================================
+2026-06-09 14:11:51,434 | INFO     | spark.main |   User     : Mr. Shree Ranjan  (Vayala)
+2026-06-09 14:11:51,436 | INFO     | spark.main |   ✓ Event bus
+2026-06-09 14:11:51,445 | INFO     | spark.main |   ✓ Security
+2026-06-09 14:11:54,971 | INFO     | spark.memory | VectorMemory initialized at data/chroma
+2026-06-09 14:11:54,972 | INFO     | spark.memory | MemoryManager initialized
+2026-06-09 14:11:54,972 | INFO     | spark.main |   ✓ Memory
+2026-06-09 14:11:56,450 | INFO     | spark.router | OpenAI client initialized
+2026-06-09 14:11:56,640 | INFO     | spark.router | Anthropic client initialized
+2026-06-09 14:11:56,640 | INFO     | spark.main |   ✓ Model provider: openai
+2026-06-09 14:11:56,641 | INFO     | spark.main |   ✓ Model provider: anthropic
+2026-06-09 14:11:56,641 | INFO     | spark.main |   ✓ Model provider: ollama
+2026-06-09 14:11:56,702 | INFO     | spark.registry | Registered agent: executive_agent
+2026-06-09 14:11:57,750 | INFO     | spark.desktop | PyAutoGUI initialized
+2026-06-09 14:11:57,754 | INFO     | spark.registry | Registered agent: desktop_agent
+2026-06-09 14:11:57,758 | INFO     | spark.vision | Tesseract OCR initialized
+2026-06-09 14:11:57,758 | INFO     | spark.registry | Registered agent: vision_agent
+2026-06-09 14:11:57,758 | INFO     | spark.registry | Registered agent: browser_agent
+2026-06-09 14:11:57,759 | INFO     | spark.registry | Registered agent: document_agent
+2026-06-09 14:11:57,759 | INFO     | spark.registry | Registered agent: research_agent
+2026-06-09 14:11:57,759 | INFO     | spark.registry | Registered agent: coding_agent
+2026-06-09 14:11:57,759 | INFO     | spark.registry | Registered agent: whatsapp_agent
+2026-06-09 14:11:57,759 | INFO     | spark.registry | Registered agent: personal_assistant
+2026-06-09 14:11:57,759 | INFO     | spark.registry | Registered agent: monitoring_agent
+2026-06-09 14:11:57,762 | INFO     | spark.agents.executive_agent | Starting executive_agent
+2026-06-09 14:11:57,762 | INFO     | spark.executive | Executive Agent initialized
+2026-06-09 14:11:57,762 | INFO     | spark.agents.desktop_agent | Starting desktop_agent
+2026-06-09 14:11:57,763 | INFO     | spark.agents.vision_agent | Starting vision_agent
+2026-06-09 14:11:58,667 | INFO     | spark.vision | Webcam 0 opened
+2026-06-09 14:11:58,667 | INFO     | spark.agents.browser_agent | Starting browser_agent
+2026-06-09 14:11:58,940 | INFO     | spark.events | EventBus running
+2026-06-09 14:12:12,407 | INFO     | spark.browser | Browser session started (Playwright/Chromium)
+2026-06-09 14:12:12,407 | INFO     | spark.agents.document_agent | Starting document_agent
+2026-06-09 14:12:12,407 | INFO     | spark.agents.research_agent | Starting research_agent
+2026-06-09 14:12:12,407 | INFO     | spark.agents.coding_agent | Starting coding_agent
+2026-06-09 14:12:12,408 | INFO     | spark.agents.whatsapp_agent | Starting whatsapp_agent
+2026-06-09 14:12:12,408 | INFO     | spark.agents.personal_assistant | Starting personal_assistant
+2026-06-09 14:12:12,408 | INFO     | spark.agents.monitoring_agent | Starting monitoring_agent
+2026-06-09 14:12:12,408 | INFO     | spark.monitoring | Monitoring agent initialized
+2026-06-09 14:12:12,409 | INFO     | spark.registry | Started 10 agents
+2026-06-09 14:12:12,409 | INFO     | spark.main |   ✓ 10 agents started
+2026-06-09 14:12:12,409 | INFO     | spark.main | 
+Good Afternoon Mr. Shree Ranjan.
+Welcome back Vayala.
+All systems operational.
+How may I assist you today?
+
+2026-06-09 14:12:13,050 | INFO     | spark.main | API server starting on http://0.0.0.0:8765  (docs: /docs)
+2026-06-09 14:12:17,414 | INFO     | spark.agents.monitoring_agent | Task assigned: watch_resource [7218bdf7]
+2026-06-09 14:12:17,414 | INFO     | spark.agents.monitoring_agent | Executing task: watch_resource
+2026-06-09 14:12:17,415 | INFO     | spark.agents.monitoring_agent | Task completed: watch_resource in 0.00s
+2026-06-09 14:12:17,415 | INFO     | spark.monitoring | Resource watch started (every 60s)
+2026-06-09 14:13:15,650 | INFO     | spark.agents.executive_agent | Stopped executive_agent
+2026-06-09 14:13:15,650 | INFO     | spark.agents.desktop_agent | Stopped desktop_agent
+2026-06-09 14:13:15,659 | INFO     | spark.agents.vision_agent | Stopped vision_agent
+2026-06-09 14:13:15,837 | ERROR    | asyncio | Task was destroyed but it is pending!
+task: <Task pending name='Task-23' coro=<MonitoringAgent._watch_loop() done, defined at C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\agents\monitoring\monitoring_agent.py:139> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+2026-06-09 14:54:22,382 | INFO     | spark.main |   ✓ Running as Administrator
+2026-06-09 14:54:22,384 | INFO     | spark.main | ==============================================================
+2026-06-09 14:54:22,384 | INFO     | spark.main |   SPARK QUANTUM AI OS v1.0.1 — Booting
+2026-06-09 14:54:22,384 | INFO     | spark.main | ==============================================================
+2026-06-09 14:54:22,549 | INFO     | spark.main |   User     : Mr. Shree Ranjan  (Vayala)
+2026-06-09 14:54:22,552 | INFO     | spark.main |   ✓ Event bus
+2026-06-09 14:54:22,568 | INFO     | spark.main |   ✓ Security
+2026-06-09 14:54:23,682 | INFO     | spark.memory | VectorMemory initialized at data/chroma
+2026-06-09 14:54:23,682 | INFO     | spark.memory | MemoryManager initialized
+2026-06-09 14:54:23,682 | INFO     | spark.main |   ✓ Memory
+2026-06-09 14:54:25,080 | INFO     | spark.router | OpenAI client initialized
+2026-06-09 14:54:25,308 | INFO     | spark.router | Anthropic client initialized
+2026-06-09 14:54:25,309 | INFO     | spark.main |   ✓ Model provider: openai
+2026-06-09 14:54:25,309 | INFO     | spark.main |   ✓ Model provider: anthropic
+2026-06-09 14:54:25,309 | INFO     | spark.main |   ✓ Model provider: ollama
+2026-06-09 14:54:25,322 | INFO     | spark.registry | Registered agent: executive_agent
+2026-06-09 14:54:26,090 | INFO     | spark.desktop | PyAutoGUI initialized
+2026-06-09 14:54:26,093 | INFO     | spark.registry | Registered agent: desktop_agent
+2026-06-09 14:54:26,098 | INFO     | spark.vision | Tesseract OCR initialized
+2026-06-09 14:54:26,098 | INFO     | spark.registry | Registered agent: vision_agent
+2026-06-09 14:54:26,098 | INFO     | spark.registry | Registered agent: browser_agent
+2026-06-09 14:54:26,098 | INFO     | spark.registry | Registered agent: document_agent
+2026-06-09 14:54:26,099 | INFO     | spark.registry | Registered agent: research_agent
+2026-06-09 14:54:26,099 | INFO     | spark.registry | Registered agent: coding_agent
+2026-06-09 14:54:26,099 | INFO     | spark.registry | Registered agent: whatsapp_agent
+2026-06-09 14:54:26,099 | INFO     | spark.registry | Registered agent: personal_assistant
+2026-06-09 14:54:26,099 | INFO     | spark.registry | Registered agent: monitoring_agent
+2026-06-09 14:54:26,102 | INFO     | spark.agents.executive_agent | Starting executive_agent
+2026-06-09 14:54:26,103 | INFO     | spark.executive | Executive Agent initialized
+2026-06-09 14:54:26,103 | INFO     | spark.agents.desktop_agent | Starting desktop_agent
+2026-06-09 14:54:26,103 | INFO     | spark.agents.vision_agent | Starting vision_agent
+2026-06-09 14:54:26,529 | INFO     | spark.vision | Webcam 0 opened
+2026-06-09 14:54:26,530 | INFO     | spark.agents.browser_agent | Starting browser_agent
+2026-06-09 14:54:26,574 | INFO     | spark.events | EventBus running
+2026-06-09 14:54:27,653 | INFO     | spark.browser | Browser session started (Playwright/Chromium)
+2026-06-09 14:54:27,654 | INFO     | spark.agents.document_agent | Starting document_agent
+2026-06-09 14:54:27,654 | INFO     | spark.agents.research_agent | Starting research_agent
+2026-06-09 14:54:27,655 | INFO     | spark.agents.coding_agent | Starting coding_agent
+2026-06-09 14:54:27,655 | INFO     | spark.agents.whatsapp_agent | Starting whatsapp_agent
+2026-06-09 14:54:27,655 | INFO     | spark.agents.personal_assistant | Starting personal_assistant
+2026-06-09 14:54:27,656 | INFO     | spark.agents.monitoring_agent | Starting monitoring_agent
+2026-06-09 14:54:27,656 | INFO     | spark.monitoring | Monitoring agent initialized
+2026-06-09 14:54:27,656 | INFO     | spark.registry | Started 10 agents
+2026-06-09 14:54:27,657 | INFO     | spark.main |   ✓ 10 agents started
+2026-06-09 14:54:27,657 | INFO     | spark.main | 
+Good Afternoon Mr. Shree Ranjan.
+Welcome back Vayala.
+All systems operational.
+How may I assist you today?
+
+2026-06-09 14:54:27,658 | WARNING  | spark.main | PySide6 not found — falling back to CLI mode
+2026-06-09 14:54:32,658 | INFO     | spark.agents.monitoring_agent | Task assigned: watch_resource [7a252c6b]
+2026-06-09 14:54:32,659 | INFO     | spark.agents.monitoring_agent | Executing task: watch_resource
+2026-06-09 14:54:32,660 | INFO     | spark.agents.monitoring_agent | Task completed: watch_resource in 0.00s
+2026-06-09 14:54:32,660 | INFO     | spark.monitoring | Resource watch started (every 60s)
+2026-06-09 15:00:44,291 | INFO     | spark.main |   ✓ Running as Administrator
+2026-06-09 15:00:44,292 | INFO     | spark.main | ==============================================================
+2026-06-09 15:00:44,292 | INFO     | spark.main |   SPARK QUANTUM AI OS v1.0.1 — Booting
+2026-06-09 15:00:44,293 | INFO     | spark.main | ==============================================================
+2026-06-09 15:00:44,424 | INFO     | spark.main |   User     : Mr. Shree Ranjan  (Vayala)
+2026-06-09 15:00:44,427 | INFO     | spark.main |   ✓ Event bus
+2026-06-09 15:00:44,432 | INFO     | spark.main |   ✓ Security
+2026-06-09 15:00:45,360 | INFO     | spark.memory | VectorMemory initialized at data/chroma
+2026-06-09 15:00:45,363 | INFO     | spark.memory | MemoryManager initialized
+2026-06-09 15:00:45,363 | INFO     | spark.main |   ✓ Memory
+2026-06-09 15:00:45,369 | INFO     | spark.events | EventBus running
+2026-06-09 15:00:45,369 | ERROR    | spark.main | Boot failed: No module named 'google.generativeai'
+Traceback (most recent call last):
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\main.py", line 273, in main
+    ctx = loop.run_until_complete(boot_subsystems())
+  File "C:\Users\shree\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 719, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\main.py", line 70, in boot_subsystems
+    from core.router.model_router import ModelRouter
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\core\router\model_router.py", line 13, in <module>
+    import google.generativeai as genai
+ModuleNotFoundError: No module named 'google.generativeai'
+2026-06-09 15:02:16,126 | INFO     | spark.main |   ✓ Running as Administrator
+2026-06-09 15:02:16,127 | INFO     | spark.main | ==============================================================
+2026-06-09 15:02:16,127 | INFO     | spark.main |   SPARK QUANTUM AI OS v1.0.1 — Booting
+2026-06-09 15:02:16,127 | INFO     | spark.main | ==============================================================
+2026-06-09 15:02:16,287 | INFO     | spark.main |   User     : Mr. Shree Ranjan  (Vayala)
+2026-06-09 15:02:16,292 | INFO     | spark.main |   ✓ Event bus
+2026-06-09 15:02:16,300 | INFO     | spark.main |   ✓ Security
+2026-06-09 15:02:17,432 | INFO     | spark.memory | VectorMemory initialized at data/chroma
+2026-06-09 15:02:17,432 | INFO     | spark.memory | MemoryManager initialized
+2026-06-09 15:02:17,432 | INFO     | spark.main |   ✓ Memory
+2026-06-09 15:02:17,434 | INFO     | spark.events | EventBus running
+2026-06-09 15:02:17,434 | ERROR    | spark.main | Boot failed: No module named 'google.generativeai'
+Traceback (most recent call last):
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\main.py", line 273, in main
+    ctx = loop.run_until_complete(boot_subsystems())
+  File "C:\Users\shree\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 719, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\main.py", line 70, in boot_subsystems
+    from core.router.model_router import ModelRouter
+  File "C:\Users\shree\Downloads\spark_quantum_ai_os_v1.0.1 (1)\spark_quantum_ai_os\core\router\model_router.py", line 13, in <module>
+    import google.generativeai as genai
+ModuleNotFoundError: No module named 'google.generativeai'
+2026-06-09 15:04:51,169 | INFO     | spark.main |   ✓ Running as Administrator
+2026-06-09 15:04:51,171 | INFO     | spark.main | ==============================================================
+2026-06-09 15:04:51,171 | INFO     | spark.main |   SPARK QUANTUM AI OS v1.0.1 — Booting
+2026-06-09 15:04:51,171 | INFO     | spark.main | ==============================================================
+2026-06-09 15:04:51,291 | INFO     | spark.main |   User     : Mr. Shree Ranjan  (Vayala)
+2026-06-09 15:04:51,295 | INFO     | spark.main |   ✓ Event bus
+2026-06-09 15:04:51,303 | INFO     | spark.main |   ✓ Security
+2026-06-09 15:04:52,115 | INFO     | spark.memory | VectorMemory initialized at data/chroma
+2026-06-09 15:04:52,115 | INFO     | spark.memory | MemoryManager initialized
+2026-06-09 15:04:52,115 | INFO     | spark.main |   ✓ Memory
+2026-06-09 15:04:55,548 | INFO     | spark.router | Gemini client initialized
+2026-06-09 15:04:55,548 | INFO     | spark.main |   ✓ Model provider: gemini
+2026-06-09 15:04:55,548 | INFO     | spark.main |   ✓ Model provider: ollama
+2026-06-09 15:04:55,562 | INFO     | spark.registry | Registered agent: executive_agent
+2026-06-09 15:04:55,637 | INFO     | spark.desktop | PyAutoGUI initialized
+2026-06-09 15:04:55,640 | INFO     | spark.registry | Registered agent: desktop_agent
+2026-06-09 15:04:55,645 | INFO     | spark.vision | Tesseract OCR initialized
+2026-06-09 15:04:55,645 | INFO     | spark.registry | Registered agent: vision_agent
+2026-06-09 15:04:55,646 | INFO     | spark.registry | Registered agent: browser_agent
+2026-06-09 15:04:55,646 | INFO     | spark.registry | Registered agent: document_agent
+2026-06-09 15:04:55,646 | INFO     | spark.registry | Registered agent: research_agent
+2026-06-09 15:04:55,646 | INFO     | spark.registry | Registered agent: coding_agent
+2026-06-09 15:04:55,646 | INFO     | spark.registry | Registered agent: whatsapp_agent
+2026-06-09 15:04:55,647 | INFO     | spark.registry | Registered agent: personal_assistant
+2026-06-09 15:04:55,647 | INFO     | spark.registry | Registered agent: monitoring_agent
+2026-06-09 15:04:55,649 | INFO     | spark.agents.executive_agent | Starting executive_agent
+2026-06-09 15:04:55,649 | INFO     | spark.executive | Executive Agent initialized
+2026-06-09 15:04:55,650 | INFO     | spark.agents.desktop_agent | Starting desktop_agent
+2026-06-09 15:04:55,650 | INFO     | spark.agents.vision_agent | Starting vision_agent
+2026-06-09 15:04:55,966 | INFO     | spark.vision | Webcam 0 opened
+2026-06-09 15:04:55,966 | INFO     | spark.agents.browser_agent | Starting browser_agent
+2026-06-09 15:04:56,009 | INFO     | spark.events | EventBus running
+2026-06-09 15:04:56,707 | INFO     | spark.browser | Browser session started (Playwright/Chromium)
+2026-06-09 15:04:56,708 | INFO     | spark.agents.document_agent | Starting document_agent
+2026-06-09 15:04:56,709 | INFO     | spark.agents.research_agent | Starting research_agent
+2026-06-09 15:04:56,709 | INFO     | spark.agents.coding_agent | Starting coding_agent
+2026-06-09 15:04:56,709 | INFO     | spark.agents.whatsapp_agent | Starting whatsapp_agent
+2026-06-09 15:04:56,710 | INFO     | spark.agents.personal_assistant | Starting personal_assistant
+2026-06-09 15:04:56,710 | INFO     | spark.agents.monitoring_agent | Starting monitoring_agent
+2026-06-09 15:04:56,710 | INFO     | spark.monitoring | Monitoring agent initialized
+2026-06-09 15:04:56,710 | INFO     | spark.registry | Started 10 agents
+2026-06-09 15:04:56,711 | INFO     | spark.main |   ✓ 10 agents started
+2026-06-09 15:04:56,711 | INFO     | spark.main | 
+Good Afternoon Mr. Shree Ranjan.
+Welcome back Vayala.
+All systems operational.
+How may I assist you today?
+
+2026-06-09 15:04:56,712 | INFO     | spark.main | Launching Electron UI...
+2026-06-09 15:04:57,015 | INFO     | spark.main | API server starting on http://127.0.0.1:8765  (docs: /docs)
+2026-06-09 15:05:01,713 | INFO     | spark.agents.monitoring_agent | Task assigned: watch_resource [8c230463]
+2026-06-09 15:05:01,713 | INFO     | spark.agents.monitoring_agent | Executing task: watch_resource
+2026-06-09 15:05:01,714 | INFO     | spark.agents.monitoring_agent | Task completed: watch_resource in 0.00s
+2026-06-09 15:05:01,715 | INFO     | spark.monitoring | Resource watch started (every 60s)
+2026-06-09 15:11:18,100 | WARNING  | spark.main |   ○ Not Administrator — some features limited. Right-click spark.bat → Run as Administrator.
+2026-06-09 15:11:18,127 | INFO     | spark.main | ==============================================================
+2026-06-09 15:11:18,127 | INFO     | spark.main |   SPARK QUANTUM AI OS v1.0.1 — Booting
+2026-06-09 15:11:18,127 | INFO     | spark.main | ==============================================================
+2026-06-09 15:11:18,817 | INFO     | spark.main |   User     : Mr. Shree Ranjan  (Vayala)
+2026-06-09 15:11:18,820 | INFO     | spark.main |   ✓ Event bus
+2026-06-09 15:11:18,898 | INFO     | spark.main |   ✓ Security
+2026-06-09 15:11:21,627 | INFO     | spark.memory | VectorMemory initialized at data/chroma
+2026-06-09 15:11:21,627 | INFO     | spark.memory | MemoryManager initialized
+2026-06-09 15:11:21,627 | INFO     | spark.main |   ✓ Memory
+2026-06-09 15:11:22,601 | INFO     | spark.router | Gemini client initialized
+2026-06-09 15:11:22,601 | INFO     | spark.main |   ✓ Model provider: gemini
+2026-06-09 15:11:22,602 | INFO     | spark.main |   ✓ Model provider: ollama
+2026-06-09 15:11:22,621 | INFO     | spark.registry | Registered agent: executive_agent
+2026-06-09 15:11:22,922 | INFO     | spark.desktop | PyAutoGUI initialized
+2026-06-09 15:11:22,927 | INFO     | spark.registry | Registered agent: desktop_agent
+2026-06-09 15:11:22,933 | INFO     | spark.vision | Tesseract OCR initialized
+2026-06-09 15:11:22,933 | INFO     | spark.registry | Registered agent: vision_agent
+2026-06-09 15:11:22,933 | INFO     | spark.registry | Registered agent: browser_agent
+2026-06-09 15:11:22,933 | INFO     | spark.registry | Registered agent: document_agent
+2026-06-09 15:11:22,933 | INFO     | spark.registry | Registered agent: research_agent
+2026-06-09 15:11:22,933 | INFO     | spark.registry | Registered agent: coding_agent
+2026-06-09 15:11:22,933 | INFO     | spark.registry | Registered agent: whatsapp_agent
+2026-06-09 15:11:22,933 | INFO     | spark.registry | Registered agent: personal_assistant
+2026-06-09 15:11:22,933 | INFO     | spark.registry | Registered agent: monitoring_agent
+2026-06-09 15:11:22,937 | INFO     | spark.agents.executive_agent | Starting executive_agent
+2026-06-09 15:11:22,937 | INFO     | spark.executive | Executive Agent initialized
+2026-06-09 15:11:22,937 | INFO     | spark.agents.desktop_agent | Starting desktop_agent
+2026-06-09 15:11:22,937 | INFO     | spark.agents.vision_agent | Starting vision_agent
+2026-06-09 15:11:23,311 | INFO     | spark.vision | Webcam 0 opened
+2026-06-09 15:11:23,311 | INFO     | spark.agents.browser_agent | Starting browser_agent
+2026-06-09 15:11:23,368 | INFO     | spark.events | EventBus running
+2026-06-09 15:11:27,902 | INFO     | spark.browser | Browser session started (Playwright/Chromium)
+2026-06-09 15:11:27,903 | INFO     | spark.agents.document_agent | Starting document_agent
+2026-06-09 15:11:27,903 | INFO     | spark.agents.research_agent | Starting research_agent
+2026-06-09 15:11:27,903 | INFO     | spark.agents.coding_agent | Starting coding_agent
+2026-06-09 15:11:27,903 | INFO     | spark.agents.whatsapp_agent | Starting whatsapp_agent
+2026-06-09 15:11:27,903 | INFO     | spark.agents.personal_assistant | Starting personal_assistant
+2026-06-09 15:11:27,904 | INFO     | spark.agents.monitoring_agent | Starting monitoring_agent
+2026-06-09 15:11:27,904 | INFO     | spark.monitoring | Monitoring agent initialized
+2026-06-09 15:11:27,904 | INFO     | spark.registry | Started 10 agents
+2026-06-09 15:11:27,904 | INFO     | spark.main |   ✓ 10 agents started
+2026-06-09 15:11:27,906 | INFO     | spark.main | 
+Good Afternoon Mr. Shree Ranjan.
+Welcome back Vayala.
+All systems operational.
+How may I assist you today?
+
+2026-06-09 15:11:27,907 | INFO     | spark.main | Launching Electron UI...
+2026-06-09 15:11:28,264 | INFO     | spark.main | API server starting on http://127.0.0.1:8765  (docs: /docs)
+2026-06-09 15:11:32,908 | INFO     | spark.agents.monitoring_agent | Task assigned: watch_resource [039cb567]
+2026-06-09 15:11:32,908 | INFO     | spark.agents.monitoring_agent | Executing task: watch_resource
+2026-06-09 15:11:32,909 | INFO     | spark.agents.monitoring_agent | Task completed: watch_resource in 0.00s
+2026-06-09 15:11:32,909 | INFO     | spark.monitoring | Resource watch started (every 60s)
+2026-06-09 15:19:10,772 | WARNING  | spark.main |   ○ Not Administrator — some features limited. Right-click spark.bat → Run as Administrator.
+2026-06-09 15:19:10,774 | INFO     | spark.main | ==============================================================
+2026-06-09 15:19:10,775 | INFO     | spark.main |   SPARK QUANTUM AI OS v1.0.1 — Booting
+2026-06-09 15:19:10,775 | INFO     | spark.main | ==============================================================
+2026-06-09 15:19:10,937 | INFO     | spark.main |   User     : Mr. Shree Ranjan  (Vayala)
+2026-06-09 15:19:10,941 | INFO     | spark.main |   ✓ Event bus
+2026-06-09 15:19:10,949 | INFO     | spark.main |   ✓ Security
+2026-06-09 15:19:11,992 | INFO     | spark.memory | VectorMemory initialized at data/chroma
+2026-06-09 15:19:11,992 | INFO     | spark.memory | MemoryManager initialized
+2026-06-09 15:19:11,992 | INFO     | spark.main |   ✓ Memory
+2026-06-09 15:19:12,665 | INFO     | spark.router | Gemini client initialized
+2026-06-09 15:19:12,665 | INFO     | spark.main |   ✓ Model provider: gemini
+2026-06-09 15:19:12,666 | INFO     | spark.main |   ✓ Model provider: ollama
+2026-06-09 15:19:12,687 | INFO     | spark.registry | Registered agent: executive_agent
+2026-06-09 15:19:12,780 | INFO     | spark.desktop | PyAutoGUI initialized
+2026-06-09 15:19:12,786 | INFO     | spark.registry | Registered agent: desktop_agent
+2026-06-09 15:19:12,791 | INFO     | spark.vision | Tesseract OCR initialized
+2026-06-09 15:19:12,791 | INFO     | spark.registry | Registered agent: vision_agent
+2026-06-09 15:19:12,791 | INFO     | spark.registry | Registered agent: browser_agent
+2026-06-09 15:19:12,791 | INFO     | spark.registry | Registered agent: document_agent
+2026-06-09 15:19:12,791 | INFO     | spark.registry | Registered agent: research_agent
+2026-06-09 15:19:12,791 | INFO     | spark.registry | Registered agent: coding_agent
+2026-06-09 15:19:12,791 | INFO     | spark.registry | Registered agent: whatsapp_agent
+2026-06-09 15:19:12,791 | INFO     | spark.registry | Registered agent: personal_assistant
+2026-06-09 15:19:12,791 | INFO     | spark.registry | Registered agent: monitoring_agent
+2026-06-09 15:19:12,795 | INFO     | spark.agents.executive_agent | Starting executive_agent
+2026-06-09 15:19:12,795 | INFO     | spark.executive | Executive Agent initialized
+2026-06-09 15:19:12,795 | INFO     | spark.agents.desktop_agent | Starting desktop_agent
+2026-06-09 15:19:12,795 | INFO     | spark.agents.vision_agent | Starting vision_agent
+2026-06-09 15:19:13,081 | INFO     | spark.vision | Webcam 0 opened
+2026-06-09 15:19:13,081 | INFO     | spark.agents.browser_agent | Starting browser_agent
+2026-06-09 15:19:13,144 | INFO     | spark.events | EventBus running
+2026-06-09 15:19:14,111 | INFO     | spark.browser | Browser session started (Playwright/Chromium)
+2026-06-09 15:19:14,112 | INFO     | spark.agents.document_agent | Starting document_agent
+2026-06-09 15:19:14,112 | INFO     | spark.agents.research_agent | Starting research_agent
+2026-06-09 15:19:14,113 | INFO     | spark.agents.coding_agent | Starting coding_agent
+2026-06-09 15:19:14,113 | INFO     | spark.agents.whatsapp_agent | Starting whatsapp_agent
+2026-06-09 15:19:14,114 | INFO     | spark.agents.personal_assistant | Starting personal_assistant
+2026-06-09 15:19:14,114 | INFO     | spark.agents.monitoring_agent | Starting monitoring_agent
+2026-06-09 15:19:14,114 | INFO     | spark.monitoring | Monitoring agent initialized
+2026-06-09 15:19:14,114 | INFO     | spark.registry | Started 10 agents
+2026-06-09 15:19:14,115 | INFO     | spark.main |   ✓ 10 agents started
+2026-06-09 15:19:14,117 | INFO     | spark.main | 
+Good Afternoon Mr. Shree Ranjan.
+Welcome back Vayala.
+All systems operational.
+How may I assist you today?
+
+2026-06-09 15:19:14,120 | INFO     | spark.main | Launching Electron UI...
+2026-06-09 15:19:14,740 | INFO     | spark.main | API server starting on http://127.0.0.1:8765  (docs: /docs)
+2026-06-09 15:19:19,119 | INFO     | spark.agents.monitoring_agent | Task assigned: watch_resource [31a6576f]
+2026-06-09 15:19:19,119 | INFO     | spark.agents.monitoring_agent | Executing task: watch_resource
+2026-06-09 15:19:19,120 | INFO     | spark.agents.monitoring_agent | Task completed: watch_resource in 0.00s
+2026-06-09 15:19:19,120 | INFO     | spark.monitoring | Resource watch started (every 60s)
+2026-06-09 15:20:23,632 | WARNING  | spark.main |   ○ Not Administrator — some features limited. Right-click spark.bat → Run as Administrator.
+2026-06-09 15:20:23,635 | INFO     | spark.main | ==============================================================
+2026-06-09 15:20:23,635 | INFO     | spark.main |   SPARK QUANTUM AI OS v1.0.1 — Booting
+2026-06-09 15:20:23,635 | INFO     | spark.main | ==============================================================
+2026-06-09 15:20:23,777 | INFO     | spark.main |   User     : Mr. Shree Ranjan  (Vayala)
+2026-06-09 15:20:23,780 | INFO     | spark.main |   ✓ Event bus
+2026-06-09 15:20:23,788 | INFO     | spark.main |   ✓ Security
+2026-06-09 15:20:24,747 | INFO     | spark.memory | VectorMemory initialized at data/chroma
+2026-06-09 15:20:24,747 | INFO     | spark.memory | MemoryManager initialized
+2026-06-09 15:20:24,747 | INFO     | spark.main |   ✓ Memory
+2026-06-09 15:20:25,359 | INFO     | spark.router | Gemini client initialized
+2026-06-09 15:20:25,359 | INFO     | spark.main |   ✓ Model provider: gemini
+2026-06-09 15:20:25,360 | INFO     | spark.main |   ✓ Model provider: ollama
+2026-06-09 15:20:25,375 | INFO     | spark.registry | Registered agent: executive_agent
+2026-06-09 15:20:25,472 | INFO     | spark.desktop | PyAutoGUI initialized
+2026-06-09 15:20:25,477 | INFO     | spark.registry | Registered agent: desktop_agent
+2026-06-09 15:20:25,482 | INFO     | spark.vision | Tesseract OCR initialized
+2026-06-09 15:20:25,482 | INFO     | spark.registry | Registered agent: vision_agent
+2026-06-09 15:20:25,482 | INFO     | spark.registry | Registered agent: browser_agent
+2026-06-09 15:20:25,482 | INFO     | spark.registry | Registered agent: document_agent
+2026-06-09 15:20:25,482 | INFO     | spark.registry | Registered agent: research_agent
+2026-06-09 15:20:25,482 | INFO     | spark.registry | Registered agent: coding_agent
+2026-06-09 15:20:25,482 | INFO     | spark.registry | Registered agent: whatsapp_agent
+2026-06-09 15:20:25,482 | INFO     | spark.registry | Registered agent: personal_assistant
+2026-06-09 15:20:25,482 | INFO     | spark.registry | Registered agent: monitoring_agent
+2026-06-09 15:20:25,485 | INFO     | spark.agents.executive_agent | Starting executive_agent
+2026-06-09 15:20:25,485 | INFO     | spark.executive | Executive Agent initialized
+2026-06-09 15:20:25,485 | INFO     | spark.agents.desktop_agent | Starting desktop_agent
+2026-06-09 15:20:25,485 | INFO     | spark.agents.vision_agent | Starting vision_agent
+2026-06-09 15:20:25,856 | INFO     | spark.vision | Webcam 0 opened
+2026-06-09 15:20:25,856 | INFO     | spark.agents.browser_agent | Starting browser_agent
+2026-06-09 15:20:25,931 | INFO     | spark.events | EventBus running
+2026-06-09 15:20:27,202 | INFO     | spark.browser | Browser session started (Playwright/Chromium)
+2026-06-09 15:20:27,202 | INFO     | spark.agents.document_agent | Starting document_agent
+2026-06-09 15:20:27,202 | INFO     | spark.agents.research_agent | Starting research_agent
+2026-06-09 15:20:27,203 | INFO     | spark.agents.coding_agent | Starting coding_agent
+2026-06-09 15:20:27,203 | INFO     | spark.agents.whatsapp_agent | Starting whatsapp_agent
+2026-06-09 15:20:27,203 | INFO     | spark.agents.personal_assistant | Starting personal_assistant
+2026-06-09 15:20:27,203 | INFO     | spark.agents.monitoring_agent | Starting monitoring_agent
+2026-06-09 15:20:27,203 | INFO     | spark.monitoring | Monitoring agent initialized
+2026-06-09 15:20:27,203 | INFO     | spark.registry | Started 10 agents
+2026-06-09 15:20:27,203 | INFO     | spark.main |   ✓ 10 agents started
+2026-06-09 15:20:27,205 | INFO     | spark.main | 
+Good Afternoon Mr. Shree Ranjan.
+Welcome back Vayala.
+All systems operational.
+How may I assist you today?
+
+2026-06-09 15:20:27,216 | INFO     | spark.main | Launching Electron UI...
+2026-06-09 15:20:27,938 | INFO     | spark.main | API server starting on http://127.0.0.1:8765  (docs: /docs)
+2026-06-09 15:20:32,210 | INFO     | spark.agents.monitoring_agent | Task assigned: watch_resource [9cfd162b]
+2026-06-09 15:20:32,211 | INFO     | spark.agents.monitoring_agent | Executing task: watch_resource
+2026-06-09 15:20:32,212 | INFO     | spark.agents.monitoring_agent | Task completed: watch_resource in 0.00s
+2026-06-09 15:20:32,212 | INFO     | spark.monitoring | Resource watch started (every 60s)
+2026-06-09 15:20:32,741 | WARNING  | spark.monitoring | ⚠️  cpu_percent at 100.0% (threshold 85.0%)
+2026-06-09 15:22:00,630 | WARNING  | spark.main |   [  ] Not Administrator — some features limited. Right-click spark.bat → Run as Administrator.
+2026-06-09 15:22:00,632 | INFO     | spark.main | ==============================================================
+2026-06-09 15:22:00,632 | INFO     | spark.main |   SPARK QUANTUM AI OS v1.0.1 — Booting
+2026-06-09 15:22:00,632 | INFO     | spark.main | ==============================================================
+2026-06-09 15:22:00,787 | INFO     | spark.main |   User     : Mr. Shree Ranjan  (Vayala)
+2026-06-09 15:22:00,790 | INFO     | spark.main |   [OK] Event bus
+2026-06-09 15:22:00,797 | INFO     | spark.main |   [OK] Security
+2026-06-09 15:22:01,745 | INFO     | spark.memory | VectorMemory initialized at data/chroma
+2026-06-09 15:22:01,745 | INFO     | spark.memory | MemoryManager initialized
+2026-06-09 15:22:01,745 | INFO     | spark.main |   [OK] Memory
+2026-06-09 15:22:02,339 | INFO     | spark.router | Gemini client initialized
+2026-06-09 15:22:02,339 | INFO     | spark.main |   [OK] Model provider: gemini
+2026-06-09 15:22:02,339 | INFO     | spark.main |   [OK] Model provider: ollama
+2026-06-09 15:22:02,374 | INFO     | spark.registry | Registered agent: executive_agent
+2026-06-09 15:22:02,460 | INFO     | spark.desktop | PyAutoGUI initialized
+2026-06-09 15:22:02,464 | INFO     | spark.registry | Registered agent: desktop_agent
+2026-06-09 15:22:02,469 | INFO     | spark.vision | Tesseract OCR initialized
+2026-06-09 15:22:02,469 | INFO     | spark.registry | Registered agent: vision_agent
+2026-06-09 15:22:02,469 | INFO     | spark.registry | Registered agent: browser_agent
+2026-06-09 15:22:02,469 | INFO     | spark.registry | Registered agent: document_agent
+2026-06-09 15:22:02,470 | INFO     | spark.registry | Registered agent: research_agent
+2026-06-09 15:22:02,470 | INFO     | spark.registry | Registered agent: coding_agent
+2026-06-09 15:22:02,470 | INFO     | spark.registry | Registered agent: whatsapp_agent
+2026-06-09 15:22:02,470 | INFO     | spark.registry | Registered agent: personal_assistant
+2026-06-09 15:22:02,470 | INFO     | spark.registry | Registered agent: monitoring_agent
+2026-06-09 15:22:02,473 | INFO     | spark.agents.executive_agent | Starting executive_agent
+2026-06-09 15:22:02,473 | INFO     | spark.executive | Executive Agent initialized
+2026-06-09 15:22:02,473 | INFO     | spark.agents.desktop_agent | Starting desktop_agent
+2026-06-09 15:22:02,474 | INFO     | spark.agents.vision_agent | Starting vision_agent
+2026-06-09 15:22:02,744 | INFO     | spark.vision | Webcam 0 opened
+2026-06-09 15:22:02,745 | INFO     | spark.agents.browser_agent | Starting browser_agent
+2026-06-09 15:22:02,796 | INFO     | spark.events | EventBus running
+2026-06-09 15:22:03,479 | INFO     | spark.browser | Browser session started (Playwright/Chromium)
+2026-06-09 15:22:03,479 | INFO     | spark.agents.document_agent | Starting document_agent
+2026-06-09 15:22:03,480 | INFO     | spark.agents.research_agent | Starting research_agent
+2026-06-09 15:22:03,480 | INFO     | spark.agents.coding_agent | Starting coding_agent
+2026-06-09 15:22:03,480 | INFO     | spark.agents.whatsapp_agent | Starting whatsapp_agent
+2026-06-09 15:22:03,480 | INFO     | spark.agents.personal_assistant | Starting personal_assistant
+2026-06-09 15:22:03,480 | INFO     | spark.agents.monitoring_agent | Starting monitoring_agent
+2026-06-09 15:22:03,480 | INFO     | spark.monitoring | Monitoring agent initialized
+2026-06-09 15:22:03,480 | INFO     | spark.registry | Started 10 agents
+2026-06-09 15:22:03,480 | INFO     | spark.main |   [OK] 10 agents started
+2026-06-09 15:22:03,480 | INFO     | spark.main | 
+Good Afternoon Mr. Shree Ranjan.
+Welcome back Vayala.
+All systems operational.
+How may I assist you today?
+
+2026-06-09 15:22:03,486 | INFO     | spark.main | Launching Electron UI...
+2026-06-09 15:22:03,856 | INFO     | spark.main | API server starting on http://127.0.0.1:8765  (docs: /docs)
+2026-06-09 15:22:08,490 | INFO     | spark.agents.monitoring_agent | Task assigned: watch_resource [4f8b3512]
+2026-06-09 15:22:08,491 | INFO     | spark.agents.monitoring_agent | Executing task: watch_resource
+2026-06-09 15:22:08,492 | INFO     | spark.agents.monitoring_agent | Task completed: watch_resource in 0.00s
+2026-06-09 15:22:08,492 | INFO     | spark.monitoring | Resource watch started (every 60s)
+2026-06-09 15:46:41,545 | WARNING  | spark.main |   [  ] Not Administrator - some features limited. Right-click spark.bat -> Run as Administrator.
+2026-06-09 15:46:41,546 | INFO     | spark.main | ==============================================================
+2026-06-09 15:46:41,546 | INFO     | spark.main |   SPARK QUANTUM AI OS v1.0.1 — Booting
+2026-06-09 15:46:41,546 | INFO     | spark.main | ==============================================================
+2026-06-09 15:46:41,670 | INFO     | spark.main |   User     : Mr. Shree Ranjan  (Vayala)
+2026-06-09 15:46:41,675 | INFO     | spark.main |   [OK] Event bus
+2026-06-09 15:46:41,680 | INFO     | spark.main |   [OK] Security
+2026-06-09 15:46:42,613 | INFO     | spark.memory | VectorMemory initialized at data/chroma
+2026-06-09 15:46:42,614 | INFO     | spark.memory | MemoryManager initialized
+2026-06-09 15:46:42,614 | INFO     | spark.main |   [OK] Memory
+2026-06-09 15:46:43,203 | INFO     | spark.router | Gemini client initialized
+2026-06-09 15:46:43,203 | INFO     | spark.main |   [OK] Model provider: gemini
+2026-06-09 15:46:43,203 | INFO     | spark.main |   [OK] Model provider: ollama
+2026-06-09 15:46:43,220 | INFO     | spark.registry | Registered agent: executive_agent
+2026-06-09 15:46:43,318 | INFO     | spark.desktop | PyAutoGUI initialized
+2026-06-09 15:46:43,323 | INFO     | spark.registry | Registered agent: desktop_agent
+2026-06-09 15:46:43,330 | INFO     | spark.vision | Tesseract OCR initialized
+2026-06-09 15:46:43,331 | INFO     | spark.registry | Registered agent: vision_agent
+2026-06-09 15:46:43,332 | INFO     | spark.registry | Registered agent: browser_agent
+2026-06-09 15:46:43,332 | INFO     | spark.registry | Registered agent: document_agent
+2026-06-09 15:46:43,332 | INFO     | spark.registry | Registered agent: research_agent
+2026-06-09 15:46:43,333 | INFO     | spark.registry | Registered agent: coding_agent
+2026-06-09 15:46:43,333 | INFO     | spark.registry | Registered agent: whatsapp_agent
+2026-06-09 15:46:43,333 | INFO     | spark.registry | Registered agent: personal_assistant
+2026-06-09 15:46:43,333 | INFO     | spark.registry | Registered agent: monitoring_agent
+2026-06-09 15:46:43,338 | INFO     | spark.agents.executive_agent | Starting executive_agent
+2026-06-09 15:46:43,338 | INFO     | spark.executive | Executive Agent initialized
+2026-06-09 15:46:43,339 | INFO     | spark.agents.desktop_agent | Starting desktop_agent
+2026-06-09 15:46:43,339 | INFO     | spark.agents.vision_agent | Starting vision_agent
+2026-06-09 15:46:43,681 | INFO     | spark.vision | Webcam 0 opened
+2026-06-09 15:46:43,682 | INFO     | spark.agents.browser_agent | Starting browser_agent
+2026-06-09 15:46:43,732 | INFO     | spark.events | EventBus running
+2026-06-09 15:46:44,394 | INFO     | spark.browser | Browser session started (Playwright/Chromium)
+2026-06-09 15:46:44,394 | INFO     | spark.agents.document_agent | Starting document_agent
+2026-06-09 15:46:44,394 | INFO     | spark.agents.research_agent | Starting research_agent
+2026-06-09 15:46:44,395 | INFO     | spark.agents.coding_agent | Starting coding_agent
+2026-06-09 15:46:44,395 | INFO     | spark.agents.whatsapp_agent | Starting whatsapp_agent
+2026-06-09 15:46:44,395 | INFO     | spark.agents.personal_assistant | Starting personal_assistant
+2026-06-09 15:46:44,395 | INFO     | spark.agents.monitoring_agent | Starting monitoring_agent
+2026-06-09 15:46:44,396 | INFO     | spark.monitoring | Monitoring agent initialized
+2026-06-09 15:46:44,396 | INFO     | spark.registry | Started 10 agents
+2026-06-09 15:46:44,396 | INFO     | spark.main |   [OK] 10 agents started
+2026-06-09 15:46:44,396 | INFO     | spark.main | 
+Good Afternoon Mr. Shree Ranjan.
+Welcome back Vayala.
+All systems operational.
+How may I assist you today?
+
+2026-06-09 15:46:44,397 | INFO     | spark.main | Launching Electron UI...
+2026-06-09 15:46:44,675 | INFO     | spark.main | API server starting on http://127.0.0.1:8765  (docs: /docs)
+2026-06-09 15:46:49,398 | INFO     | spark.agents.monitoring_agent | Task assigned: watch_resource [65f19309]
+2026-06-09 15:46:49,398 | INFO     | spark.agents.monitoring_agent | Executing task: watch_resource
+2026-06-09 15:46:49,398 | INFO     | spark.agents.monitoring_agent | Task completed: watch_resource in 0.00s
+2026-06-09 15:46:49,399 | INFO     | spark.monitoring | Resource watch started (every 60s)
