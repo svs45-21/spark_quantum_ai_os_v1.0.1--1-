@@ -7,12 +7,14 @@ Or embedded via main.py with --api flag.
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import logging
+import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -58,6 +60,12 @@ def _require_ctx():
 class CommandRequest(BaseModel):
     text: str
     source: str = "api"
+
+
+class ChatRequest(BaseModel):
+    text: str
+    source: str = "phone"
+    timeout_seconds: float = 120.0
 
 
 class TaskRequest(BaseModel):
@@ -132,6 +140,68 @@ async def send_command(req: CommandRequest):
     )
     await _broadcast_ws({"type": "command", "text": req.text, "event_id": event.id})
     return {"status": "dispatched", "event_id": event.id, "text": req.text}
+
+
+def _check_token(authorization: Optional[str]) -> None:
+    """If SPARK_API_TOKEN is set, require it as a Bearer token."""
+    expected = os.environ.get("SPARK_API_TOKEN", "").strip()
+    if not expected:
+        return
+    given = (authorization or "").removeprefix("Bearer ").strip()
+    if not hmac.compare_digest(given.encode(), expected.encode()):
+        raise HTTPException(status_code=401, detail="Invalid or missing access token")
+
+
+@app.post("/chat", tags=["Commands"])
+async def chat(req: ChatRequest, authorization: Optional[str] = Header(default=None)):
+    """
+    Send a request and wait for SPARK's spoken reply. Used by the Spark
+    Android companion to hand heavy jobs (research, documents, code, PC
+    control) to the desktop system.
+    """
+    _check_token(authorization)
+    ctx = _require_ctx()
+    from core.events.bus import EventType
+
+    text = req.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Empty request")
+
+    bus = ctx["bus"]
+    loop = asyncio.get_running_loop()
+    reply: asyncio.Future = loop.create_future()
+    command_id: Dict[str, Optional[str]] = {"id": None}
+
+    async def _on_status(event):
+        payload = event.payload or {}
+        if not payload.get("speak") or reply.done():
+            return
+        if command_id["id"] and payload.get("correlation_id") == command_id["id"]:
+            reply.set_result(payload)
+
+    bus.subscribe(EventType.AGENT_STATUS_UPDATE, _on_status)
+    try:
+        event = await bus.emit(EventType.USER_COMMAND, {"text": text}, source=req.source)
+        command_id["id"] = event.id
+        await _broadcast_ws({"type": "command", "text": text, "event_id": event.id})
+        timeout = max(5.0, min(req.timeout_seconds, 600.0))
+        try:
+            payload = await asyncio.wait_for(reply, timeout=timeout)
+        except asyncio.TimeoutError:
+            return {
+                "reply": "SPARK is still working on that. Check the desktop for the result.",
+                "finished": False,
+                "event_id": event.id,
+            }
+        plan = payload.get("plan") or {}
+        return {
+            "reply": payload.get("message", ""),
+            "finished": True,
+            "event_id": event.id,
+            "steps": [s.get("description", "") for s in plan.get("plan", []) if isinstance(s, dict)],
+        }
+    finally:
+        bus.unsubscribe(EventType.AGENT_STATUS_UPDATE, _on_status)
 
 
 @app.post("/task", tags=["Commands"])

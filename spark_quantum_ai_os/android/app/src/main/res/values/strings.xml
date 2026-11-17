@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Spark</string>
+    <string name="settings_title">Spark settings</string>
+    <string name="accessibility_label">Spark phone control</string>
+    <string name="notification_listener_label">Spark notification reader</string>
+    <string name="accessibility_description">Lets Spark read what is on the screen and tap, type and scroll in other apps when you ask it to do something. Spark asks before sending messages, placing calls, paying, deleting or tapping anything inside a banking or payment app. Screen content is sent to the AI model only while it is carrying out one of your requests.</string>
+</resources>

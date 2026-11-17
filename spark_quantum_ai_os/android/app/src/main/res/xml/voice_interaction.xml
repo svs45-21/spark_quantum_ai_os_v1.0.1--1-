@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<voice-interaction-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:recognitionService="com.spark.companion.assist.SparkRecognitionService"
+    android:sessionService="com.spark.companion.assist.SparkSessionService"
+    android:settingsActivity="com.spark.companion.ui.SettingsActivity"
+    android:supportsAssist="true"
+    android:supportsLaunchVoiceAssistFromKeyguard="false" />

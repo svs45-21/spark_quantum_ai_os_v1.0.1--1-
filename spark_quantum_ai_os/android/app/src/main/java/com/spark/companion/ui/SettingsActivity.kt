@@ -1,0 +1,336 @@
+package com.spark.companion.ui
+
+import android.Manifest
+import android.app.Activity
+import android.app.AlertDialog
+import android.content.ComponentName
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.provider.Settings as SystemSettings
+import android.text.InputType
+import android.view.Gravity
+import android.view.View
+import android.view.ViewGroup
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.Switch
+import android.widget.Toast
+import com.spark.companion.SparkApp
+import com.spark.companion.assist.SparkVoiceInteractionService
+import com.spark.companion.phone.SparkAccessibilityService
+import com.spark.companion.phone.SparkNotificationListener
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+
+/** Setup and preferences: keys, voice options, and the permissions Spark needs. */
+class SettingsActivity : Activity() {
+
+    private val engine get() = SparkApp.engine
+    private val settings get() = engine.settings
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    private lateinit var content: LinearLayout
+    private lateinit var permissionRows: LinearLayout
+    private val savers = ArrayList<() -> Unit>()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val pad = Ui.dp(this, 20)
+        content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(pad, pad, pad, Ui.dp(this@SettingsActivity, 48))
+        }
+        setContentView(ScrollView(this).apply {
+            setBackgroundColor(Ui.BG)
+            fitsSystemWindows = true
+            addView(content)
+        })
+        build()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        renderPermissions()
+    }
+
+    override fun onPause() {
+        save()
+        super.onPause()
+    }
+
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
+    }
+
+    private fun save() {
+        savers.forEach { it() }
+        engine.refreshSettings()
+    }
+
+    // ── Building blocks ──────────────────────────────────────────────────
+
+    private fun section(title: String, blurb: String? = null) {
+        content.addView(Ui.text(this, title, 13f, Ui.ACCENT, bold = true).apply {
+            letterSpacing = 0.12f
+            setPadding(0, Ui.dp(this@SettingsActivity, 26), 0, Ui.dp(this@SettingsActivity, 6))
+        })
+        if (blurb != null) note(blurb)
+    }
+
+    private fun note(text: String) {
+        content.addView(Ui.text(this, text, 13.5f, Ui.TEXT_DIM).apply {
+            setLineSpacing(0f, 1.15f)
+            setPadding(0, 0, 0, Ui.dp(this@SettingsActivity, 8))
+        })
+    }
+
+    private fun field(
+        label: String,
+        value: String,
+        hint: String = "",
+        secret: Boolean = false,
+        onSave: (String) -> Unit,
+    ): EditText {
+        content.addView(Ui.text(this, label, 13.5f, Ui.TEXT_DIM).apply {
+            setPadding(0, Ui.dp(this@SettingsActivity, 10), 0, Ui.dp(this@SettingsActivity, 4))
+        })
+        val edit = EditText(this).apply {
+            setText(value)
+            this.hint = hint
+            setHintTextColor(Ui.TEXT_DIM)
+            setTextColor(Ui.TEXT)
+            textSize = 15f
+            setSingleLine(true)
+            inputType = if (secret) {
+                InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            } else {
+                InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            }
+            background = Ui.rounded(Ui.SURFACE, Ui.dp(this@SettingsActivity, 12).toFloat())
+            setPadding(Ui.dp(this@SettingsActivity, 14), Ui.dp(this@SettingsActivity, 12), Ui.dp(this@SettingsActivity, 14), Ui.dp(this@SettingsActivity, 12))
+        }
+        content.addView(edit)
+        savers.add { onSave(edit.text.toString()) }
+        return edit
+    }
+
+    private fun toggle(label: String, detail: String, value: Boolean, onChange: (Boolean) -> Unit) {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, Ui.dp(this@SettingsActivity, 10), 0, Ui.dp(this@SettingsActivity, 10))
+        }
+        val texts = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        texts.addView(Ui.text(this, label, 15.5f))
+        texts.addView(Ui.text(this, detail, 13f, Ui.TEXT_DIM))
+        row.addView(texts, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        row.addView(Switch(this).apply {
+            isChecked = value
+            setOnCheckedChangeListener { _, checked ->
+                onChange(checked)
+                engine.refreshSettings()
+            }
+        })
+        content.addView(row)
+    }
+
+    private fun action(label: String, fill: Int = Ui.SURFACE_HI, textColor: Int = Ui.TEXT, onClick: () -> Unit) {
+        content.addView(
+            Ui.button(this, label, fill, textColor, onClick),
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = Ui.dp(this@SettingsActivity, 10) }
+        )
+    }
+
+    private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_LONG).show()
+
+    // ── Screen ───────────────────────────────────────────────────────────
+
+    private fun build() {
+        content.addView(Ui.text(this, "Spark settings", 24f, Ui.TEXT, bold = true))
+
+        section("YOU")
+        field("What should Spark call you?", settings.userName, "Your name") { settings.userName = it }
+
+        section(
+            "BRAIN",
+            "Spark thinks with Google's Gemini. Create a free key at aistudio.google.com/apikey and paste it here. " +
+                "It is stored encrypted on this phone and sent only to Google."
+        )
+        field("Gemini API key", settings.apiKey, "AIza…", secret = true) { settings.apiKey = it }
+        field("Model", settings.model, "gemini-2.5-flash") { settings.model = it }
+        action("Test Gemini connection") {
+            save()
+            toast("Testing…")
+            scope.launch { toast(engine.testGemini()) }
+        }
+
+        section("VOICE")
+        toggle("Speak replies aloud", "Turn off for silent, text-only answers", settings.speakReplies) {
+            settings.speakReplies = it
+        }
+        toggle(
+            "Keep the conversation going", "Listen again after each reply until you stop talking",
+            settings.continuous
+        ) { settings.continuous = it }
+        field("Speech language (optional)", settings.language, "e.g. en-IN or hi-IN; blank = phone default") {
+            settings.language = it
+        }
+        toggle(
+            "Floating orb", "Show Spark's orb over other apps (needs phone control)", settings.floatingOrb
+        ) { settings.floatingOrb = it }
+        toggle(
+            "Hands-free wake word (experimental)",
+            "Listen all the time for the wake word. Uses more battery, and some phones beep each time listening restarts.",
+            settings.wakeWordEnabled
+        ) { on ->
+            settings.wakeWordEnabled = on
+            if (on && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 1)
+            }
+        }
+        field("Wake word", settings.wakeWord, "spark") { settings.wakeWord = it }
+
+        section(
+            "PERMISSIONS",
+            "Each of these unlocks something Spark can do for you. Spark always asks before it sends a " +
+                "message, places a call, pays, deletes, or touches a banking app."
+        )
+        permissionRows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        content.addView(permissionRows)
+        note(
+            "If Android says a setting is “restricted” when you enable phone control or notification access: " +
+                "open App info for Spark, tap the ⋮ menu at the top right, choose “Allow restricted settings”, then try again."
+        )
+        action("Open App info for Spark") {
+            startActivity(
+                Intent(SystemSettings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+            )
+        }
+
+        section(
+            "DESKTOP SPARK (OPTIONAL)",
+            "Link to the SPARK system on your computer for research, documents and code. Start it with " +
+                "“python main.py --api” and enter its address. Use this on your home network only."
+        )
+        field("Server address", settings.serverUrl, "http://192.168.1.20:8765") { settings.serverUrl = it }
+        field("Access token (SPARK_API_TOKEN)", settings.serverToken, "optional", secret = true) {
+            settings.serverToken = it
+        }
+        action("Test desktop link") {
+            save()
+            scope.launch {
+                toast(if (engine.testDesktopLink()) "Connected to SPARK on your computer." else "Couldn't reach that address.")
+            }
+        }
+
+        section("MEMORY", "Everything Spark remembers stays in a private database on this phone.")
+        action("Forget everything Spark knows about me", Ui.SURFACE_HI, Ui.DANGER) {
+            AlertDialog.Builder(this)
+                .setTitle("Forget everything?")
+                .setMessage("This deletes the conversation and every fact Spark has remembered. It cannot be undone.")
+                .setPositiveButton("Forget") { _, _ ->
+                    engine.forgetEverything()
+                    toast("Memory cleared.")
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+    }
+
+    // ── Permissions ──────────────────────────────────────────────────────
+
+    private fun has(permission: String) = checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
+
+    private fun isDefaultAssistant(): Boolean {
+        val current = SystemSettings.Secure.getString(contentResolver, "voice_interaction_service") ?: return false
+        return ComponentName.unflattenFromString(current)?.packageName == packageName &&
+            current.contains(SparkVoiceInteractionService::class.java.simpleName)
+    }
+
+    private fun renderPermissions() {
+        permissionRows.removeAllViews()
+        permissionRow("Microphone", "So Spark can hear you", has(Manifest.permission.RECORD_AUDIO)) {
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 1)
+        }
+        permissionRow(
+            "Phone control", "Read the screen and tap, type and scroll in other apps (Accessibility)",
+            SparkAccessibilityService.instance != null
+        ) { open(SystemSettings.ACTION_ACCESSIBILITY_SETTINGS) }
+        permissionRow("Contacts", "Call and message people by name", has(Manifest.permission.READ_CONTACTS)) {
+            requestPermissions(arrayOf(Manifest.permission.READ_CONTACTS), 1)
+        }
+        permissionRow("Phone calls", "Place calls for you (after you confirm)", has(Manifest.permission.CALL_PHONE)) {
+            requestPermissions(arrayOf(Manifest.permission.CALL_PHONE), 1)
+        }
+        permissionRow("SMS", "Send texts for you (after you confirm)", has(Manifest.permission.SEND_SMS)) {
+            requestPermissions(arrayOf(Manifest.permission.SEND_SMS), 1)
+        }
+        if (Build.VERSION.SDK_INT >= 33) {
+            permissionRow("Notifications", "Show reminders", has(Manifest.permission.POST_NOTIFICATIONS)) {
+                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+            }
+        }
+        permissionRow(
+            "Notification access", "Tell you who messaged and what arrived", SparkNotificationListener.connected
+        ) { open(SystemSettings.ACTION_NOTIFICATION_LISTENER_SETTINGS) }
+        permissionRow(
+            "Default assistant", "Summon Spark with the assistant gesture or button", isDefaultAssistant()
+        ) { open(SystemSettings.ACTION_VOICE_INPUT_SETTINGS) }
+    }
+
+    private fun permissionRow(title: String, detail: String, granted: Boolean, onGrant: () -> Unit) {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = Ui.rounded(Ui.SURFACE, Ui.dp(this@SettingsActivity, 14).toFloat())
+            setPadding(Ui.dp(this@SettingsActivity, 14), Ui.dp(this@SettingsActivity, 12), Ui.dp(this@SettingsActivity, 12), Ui.dp(this@SettingsActivity, 12))
+        }
+        val texts = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        texts.addView(Ui.text(this, title, 15.5f))
+        texts.addView(Ui.text(this, detail, 13f, Ui.TEXT_DIM))
+        row.addView(texts, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        val badge: View = if (granted) {
+            Ui.text(this, "On", 14f, Ui.OK, bold = true).apply {
+                setPadding(Ui.dp(this@SettingsActivity, 12), 0, Ui.dp(this@SettingsActivity, 6), 0)
+            }
+        } else {
+            Ui.button(this, "Turn on", onClick = onGrant)
+        }
+        row.addView(badge)
+        permissionRows.addView(row, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { bottomMargin = Ui.dp(this@SettingsActivity, 8) })
+    }
+
+    private fun open(action: String) {
+        try {
+            startActivity(Intent(action))
+        } catch (e: Exception) {
+            try {
+                startActivity(Intent(SystemSettings.ACTION_SETTINGS))
+            } catch (e2: Exception) {
+                toast("Couldn't open system settings.")
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        renderPermissions()
+        engine.refreshSettings()
+        if (grantResults.any { it != PackageManager.PERMISSION_GRANTED }) {
+            toast("If Android didn't ask, turn it on under App info → Permissions.")
+        }
+    }
+
+}

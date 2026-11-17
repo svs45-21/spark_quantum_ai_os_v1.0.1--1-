@@ -83,7 +83,7 @@ class ExecutiveAgent(BaseAgent):
         """Process a user command and produce an execution plan."""
         user_input = task.payload.get("text", "")
         plan = await self._plan(user_input)
-        await self._announce_plan(plan)
+        await self._announce_plan(plan, correlation_id=task.correlation_id)
         return plan
 
     async def _on_user_command(self, event: Event) -> None:
@@ -141,7 +141,7 @@ class ExecutiveAgent(BaseAgent):
                 "priority": "normal",
             }
 
-    async def _announce_plan(self, plan: dict) -> None:
+    async def _announce_plan(self, plan: dict, correlation_id: Optional[str] = None) -> None:
         """Broadcast plan to UI and voice."""
         response_text = plan.get("response_to_user", "Processing your request...")
         await self._bus.emit(
@@ -151,8 +151,11 @@ class ExecutiveAgent(BaseAgent):
                 "message": response_text,
                 "plan": plan,
                 "speak": True,
+                # Lets callers such as POST /chat match this reply to their request.
+                "correlation_id": correlation_id,
             },
             source=self.name,
+            correlation_id=correlation_id,
         )
 
     def get_greeting(self) -> str:

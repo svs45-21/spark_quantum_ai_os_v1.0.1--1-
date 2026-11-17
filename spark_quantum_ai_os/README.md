@@ -6,6 +6,12 @@ A production-grade AI Operating System — voice-controlled, multi-agent, autono
 
 ---
 
+## 📱 Android companion
+
+`android/` contains **Spark for Android**: a voice companion that talks with you, remembers you, and operates the phone for you (apps, calls, SMS, WhatsApp, alarms, navigation, screen control), with confirmation before anything risky. It can hand heavy jobs to this desktop system through `POST /chat`. See [android/README.md](android/README.md) for install steps; the APK is built by GitHub Actions.
+
+---
+
 ## 🚀 Quick Start (Windows — Run as Administrator)
 
 ### Step 1: Install
