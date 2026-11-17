@@ -6,6 +6,22 @@ Spark appears as an **animated avatar**. Pick Nova (a sleek robot), Mira (a warm
 
 ![Nova, Mira and Kit asleep, waking, listening, thinking, talking, sad, surprised and working](docs/avatars.png)
 
+### Make your own avatar
+
+Open **Avatar Studio** (the **＋ Create** chip under the avatar, or Settings → Avatar) and either:
+
+- **Use a photo.** Pick any clear, front-facing face: a selfie, a portrait, a painting or a drawing. Spark finds the face, crops a portrait and animates it. It blinks with its own eyelids, opens its mouth as it talks, smiles, raises its brows, looks around and tilts its head. You can use the photo as it is, which keeps it on the phone. Or restyle it with AI as **Realistic**, **3D animated**, **Anime**, **Comic** or **Painted**, which sends the photo to Google Gemini and keeps your likeness.
+- **Describe one.** Write who it should be, for example "a cheerful woman in her twenties with curly black hair and a yellow kurta". Gemini paints the portrait in the look you pick.
+
+Then drag four dots onto the eyes and mouth corners, watch the live preview talk, blink and smile, and give it a name, a personality and a voice. Spark becomes that character, and its personality shapes how it talks. Use photos of yourself or of people who are happy to be an avatar.
+
+### Languages and voices
+
+Tick the languages you speak in **Settings → Languages**. Spark answers in whichever one you use, written in its own script, and switches when you do. The voice switches with it, and listening follows the conversation. On Android 14+ the recogniser can also auto-detect between your languages.
+
+- **Phone voice:** free and instant. It uses the best offline voice installed for each language. Install more under the phone's Settings → Text-to-speech.
+- **Gemini natural voice:** much more human. It carries the reply's emotion (cheerful, gentle, excited…), speaks every language, and each avatar has its own voice. It takes a moment longer and uses your Gemini quota. The lip-sync follows the exact audio.
+
 You can say the wake word and your request in one breath ("Spark, set an alarm for 6"), tap the avatar, or long-press home or power once Spark is your default assistant. Then talk:
 
 - *"Remind me to call the bank in 30 minutes."*
@@ -21,6 +37,8 @@ You can say the wake word and your request in one breath ("Spark, set an alarm f
 
 | Area | Abilities |
 |---|---|
+| Avatar Studio | Your own avatars from a photo (as-is or AI-restyled) or from a description, with realistic face animation. |
+| Languages | 27 languages; replies, voice and listening follow the language you speak. Optional Gemini natural voices with emotion. |
 | Avatar | Three animated characters with sleep, wake-up, listening, thinking, working and speaking animations, lip-sync and mood expressions. A floating avatar appears over other apps when it wakes. |
 | Wake word | Always-on "Spark" detection (also hears "Sparky", "Sparks", "स्पार्क"). On Android 12+ it uses the phone's offline recogniser, which usually doesn't beep. |
 | Conversation | Natural back-and-forth voice conversation that keeps listening after each reply, plus a typed chat. It matches your language (English, Hindi, Hinglish and others) and remembers facts about you across sessions. |
@@ -102,5 +120,7 @@ The agent loop sends the conversation and tool list to Gemini, runs the function
 - Speech recognition uses the phone's own engine (usually Google's), which may need internet.
 - The wake word uses Android's speech recogniser in a loop, not a dedicated low-power hotword chip, so it costs some battery. On phones without offline recognition (most phones before Android 12), the recogniser may beep each time it restarts. In that case turn the wake word off from the chip under the avatar and tap the avatar instead.
 - Lip-sync follows the real voice volume where the phone allows it; otherwise it follows word timing.
+- Photo avatars animate a single picture by warping it. They look best with a front-facing face, eyes open and mouth closed. Side profiles, sunglasses or hands over the face won't animate well.
+- Gemini model names change over time. If avatar creation or natural voices say the model isn't found, update the names under Settings → Advanced.
 - Games, videos and some banking apps hide their content from accessibility services, so Spark can't read or tap inside them.
 - Android 14+ may refuse to keep the microphone alive when a conversation is started from the background. If Spark stops listening behind another app, tap the orb.

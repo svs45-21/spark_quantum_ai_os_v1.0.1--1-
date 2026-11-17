@@ -17,7 +17,7 @@ import com.spark.companion.brain.Mood
 import com.spark.companion.engine.EngineState
 import com.spark.companion.engine.PendingConfirm
 import com.spark.companion.engine.Phase
-import com.spark.companion.ui.avatar.AvatarStyle
+import com.spark.companion.ui.avatar.AvatarProfile
 import com.spark.companion.ui.avatar.AvatarView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -113,18 +113,18 @@ class AvatarOverlay(private val context: Context, private val windowType: Int) {
         val partial: String,
         val caption: String,
         val mood: Mood,
-        val style: AvatarStyle,
+        val profile: AvatarProfile,
     )
 
     fun attach() {
         val engine = SparkApp.engine
         scope.launch {
             val head = combine(engine.state, engine.pendingConfirm, engine.uiVisible, engine.floatingEnabled, engine.awake) { s, p, u, f, a ->
-                Model(s, p, u, f, a, "", "", Mood.CALM, AvatarStyle.NOVA)
+                Model(s, p, u, f, a, "", "", Mood.CALM, AvatarProfile.DEFAULT)
             }
-            val tail = combine(engine.partial, engine.caption, engine.mood, engine.avatarStyle) { pa, c, m, st -> listOf(pa, c, m, st) }
+            val tail = combine(engine.partial, engine.caption, engine.mood, engine.avatar) { pa, c, m, st -> listOf(pa, c, m, st) }
             combine(head, tail) { h, t ->
-                h.copy(partial = t[0] as String, caption = t[1] as String, mood = t[2] as Mood, style = t[3] as AvatarStyle)
+                h.copy(partial = t[0] as String, caption = t[1] as String, mood = t[2] as Mood, profile = t[3] as AvatarProfile)
             }.collect { render(it) }
         }
         scope.launch { engine.level.collect { avatar?.level = it } }
@@ -148,7 +148,7 @@ class AvatarOverlay(private val context: Context, private val windowType: Int) {
         if (showAvatar) {
             ensureAvatar()
             avatar?.let { v ->
-                v.style = m.style
+                v.profile = m.profile
                 v.awake = m.awake
                 v.phase = m.state.phase
                 v.mood = m.mood

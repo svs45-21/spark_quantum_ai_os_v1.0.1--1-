@@ -87,6 +87,12 @@
         </activity>
 
         <activity
+            android:name=".ui.AvatarStudioActivity"
+            android:exported="false"
+            android:label="Avatar Studio"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name=".ui.SettingsActivity"
             android:exported="false"
             android:label="@string/settings_title"

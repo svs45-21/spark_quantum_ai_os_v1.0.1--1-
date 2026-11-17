@@ -33,9 +33,16 @@ class MoodTest {
     }
 
     @Test fun greetingsUseName() {
-        val all = (0 until 50).map { Greetings.pick("Shree", 9, Random(it)) }
+        val all = (0 until 50).map { Greetings.pick("Shree", 9, random = Random(it)) }
         assertTrue(all.any { it.contains("Shree") })
         assertTrue(all.all { it.isNotBlank() })
         assertTrue(all.any { it.startsWith("Good morning") })
+    }
+}
+
+class GreetingsLanguageTest {
+    @org.junit.Test fun hindiGreetingWhenSpeakingHindi() {
+        val g = Greetings.pick("Shree", 9, "hi-IN", Random(1))
+        org.junit.Assert.assertTrue(g.any { Character.UnicodeScript.of(it.code) == Character.UnicodeScript.DEVANAGARI })
     }
 }

@@ -9,7 +9,9 @@ import com.spark.companion.brain.ConfirmRequest
 import com.spark.companion.brain.GeminiClient
 import com.spark.companion.brain.Greetings
 import com.spark.companion.brain.LlmException
+import com.spark.companion.brain.Languages
 import com.spark.companion.brain.Mood
+import com.spark.companion.brain.ReplyTags
 import com.spark.companion.brain.Persona
 import com.spark.companion.brain.SpeechText
 import com.spark.companion.brain.ToolCatalog
@@ -21,7 +23,8 @@ import com.spark.companion.phone.PhoneTools
 import com.spark.companion.phone.SparkAccessibilityService
 import com.spark.companion.ui.OverlayController
 import com.spark.companion.ui.avatar.AvatarRig
-import com.spark.companion.ui.avatar.AvatarStyle
+import com.spark.companion.ui.avatar.AvatarRepository
+import com.spark.companion.voice.NaturalVoice
 import com.spark.companion.voice.Speaker
 import com.spark.companion.voice.SpeechInput
 import kotlinx.coroutines.CompletableDeferred
@@ -90,7 +93,17 @@ class SparkEngine(private val context: Context) {
     private val _caption = MutableStateFlow("")
     val caption: StateFlow<String> = _caption
 
-    val avatarStyle = MutableStateFlow(AvatarStyle.from(settings.avatar))
+    val avatars = AvatarRepository(context)
+
+    /** The avatar Spark currently appears as. */
+    val avatar = MutableStateFlow(avatars.get(settings.avatar))
+
+    private val naturalVoice = NaturalVoice({ settings.apiKey }, { settings.ttsModel })
+
+    /** The language the conversation is in right now; listening follows it. */
+    private var talkLanguage: String = settings.primaryLanguage
+    private val missingVoiceNoted = HashSet<String>()
+    private var naturalVoiceFailedNoted = false
 
     private val _pending = MutableStateFlow<PendingConfirm?>(null)
     val pendingConfirm: StateFlow<PendingConfirm?> = _pending
@@ -108,6 +121,14 @@ class SparkEngine(private val context: Context) {
     val busy: Boolean get() = job?.isActive == true
 
     init {
+        speaker.onMissingVoice = { tag ->
+            if (missingVoiceNoted.add(tag)) {
+                postAssistant(
+                    "This phone has no ${Languages.name(tag)} voice installed, so I'll read it with the default voice. " +
+                        "Add it under Settings → Text-to-speech, or turn on Gemini voices in Spark settings."
+                )
+            }
+        }
         scope.launch {
             val recent = withContext(Dispatchers.IO) { memory.recentMessages() }
             _messages.value = recent
@@ -189,7 +210,8 @@ class SparkEngine(private val context: Context) {
     /** Call after settings change so background features follow them. */
     fun refreshSettings() {
         floatingEnabled.value = settings.floatingAvatar
-        avatarStyle.value = AvatarStyle.from(settings.avatar)
+        avatar.value = avatars.get(settings.avatar)
+        if (talkLanguage !in settings.languages) talkLanguage = settings.primaryLanguage
         if (settings.wakeWordEnabled && micGranted()) {
             CompanionService.start(context)
             if (wakeJob?.isActive != true && !busy) wakeJob = scope.launch { wakeLoop() }
@@ -211,6 +233,15 @@ class SparkEngine(private val context: Context) {
     }
 
     suspend fun testDesktopLink(): Boolean = link.ping()
+
+    /** Says a short sample with the current avatar's voice, for the settings screen. */
+    fun testVoice() {
+        startSession {
+            talkLanguage = settings.primaryLanguage
+            _mood.value = Mood.HAPPY
+            say(Greetings.sample(settings.userName, talkLanguage))
+        }
+    }
 
     // ── Sessions ─────────────────────────────────────────────────────────
 
@@ -247,7 +278,8 @@ class SparkEngine(private val context: Context) {
             // Give the wake-up animation a moment, then say hello.
             delay(AvatarRig.WAKE_MS - 300)
             _mood.value = Mood.HAPPY
-            say(Greetings.pick(settings.userName, Calendar.getInstance().get(Calendar.HOUR_OF_DAY)))
+            talkLanguage = settings.primaryLanguage
+            say(Greetings.pick(settings.userName, Calendar.getInstance().get(Calendar.HOUR_OF_DAY), talkLanguage))
         }
         while (true) {
             if (text == null) {
@@ -270,10 +302,13 @@ class SparkEngine(private val context: Context) {
         _state.value = EngineState(Phase.LISTENING, prompt)
         return try {
             speech.listen(
-                settings.language,
+                talkLanguage,
                 onPartial = { _partial.value = it },
                 onLevel = { _level.value = it },
-            )
+                alsoAllowed = settings.languages,
+            ).also {
+                speech.detectedLanguage?.let { tag -> Languages.resolve(tag, settings.languages)?.let { l -> talkLanguage = l } }
+            }
         } finally {
             _level.value = 0f
             _partial.value = ""
@@ -297,9 +332,14 @@ class SparkEngine(private val context: Context) {
                 confirm = { request -> confirm(request, voice) },
                 listener = listener,
             )
-            val (mood, clean) = Mood.split(reply)
-            _mood.value = mood ?: Mood.CALM
+            val tags = ReplyTags.parse(reply)
+            val clean = tags.text
+            _mood.value = tags.mood ?: Mood.CALM
             _caption.value = clean
+            // Speak (and next listen) in the language of this reply.
+            val langs = settings.languages
+            (Languages.resolve(tags.language, langs) ?: Languages.guessFromScript(clean, langs))
+                ?.let { talkLanguage = it }
             post(false, clean)
             clean
         } catch (e: LlmException) {
@@ -323,7 +363,8 @@ class SparkEngine(private val context: Context) {
                 screenControl = SparkAccessibilityService.instance != null,
                 desktopLink = settings.desktopLinked,
                 voice = voice,
-                avatar = avatarStyle.value.personality,
+                avatar = avatar.value.prompt,
+                languages = settings.languages.map { "${Languages.name(it)} ($it)" },
             )
         )
     }
@@ -377,7 +418,8 @@ class SparkEngine(private val context: Context) {
             val onDevice = wakeOnDevice && speech.onDeviceAvailable
             var stirred = false
             val heard = speech.listen(
-                settings.language,
+                settings.primaryLanguage,
+                alsoAllowed = settings.languages,
                 onPartial = { partial ->
                     if (!stirred && SpeechText.afterWakeWord(partial, settings.wakeWord) != null) {
                         stirred = true
@@ -405,12 +447,33 @@ class SparkEngine(private val context: Context) {
         }
     }
 
-    /** Speaks [text] with subtitles and lip-sync. */
+    /**
+     * Speaks [text] in the conversation's language with the avatar's voice,
+     * showing subtitles and moving the avatar's mouth.
+     */
     private suspend fun say(text: String) {
-        _caption.value = Mood.split(text).second
+        val clean = ReplyTags.parse(text).text
+        _caption.value = clean
         _state.value = EngineState(Phase.SPEAKING)
-        speaker.speak(_caption.value, settings.language) { _level.value = it }
-        _level.value = 0f
+        val voice = avatar.value.voice
+        val onLevel: (Float) -> Unit = { _level.value = it }
+        try {
+            if (settings.voiceEngine == "gemini" && settings.apiKey.isNotBlank()) {
+                try {
+                    val pcm = naturalVoice.synthesize(SpeechText.forSpeech(clean), voice.geminiVoice, _mood.value)
+                    naturalVoice.play(pcm, onLevel)
+                    return
+                } catch (e: LlmException) {
+                    if (!naturalVoiceFailedNoted) {
+                        naturalVoiceFailedNoted = true
+                        post(false, "Gemini voice didn't work (${e.message}), so I'm using the phone's voice for now.")
+                    }
+                }
+            }
+            speaker.speak(clean, talkLanguage, onLevel, voice.pitch, voice.rate)
+        } finally {
+            _level.value = 0f
+        }
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────

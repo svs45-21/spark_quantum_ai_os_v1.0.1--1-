@@ -21,7 +21,7 @@ import com.spark.companion.SparkApp
 import com.spark.companion.engine.EngineState
 import com.spark.companion.engine.Phase
 import com.spark.companion.memory.ChatMessage
-import com.spark.companion.ui.avatar.AvatarStyle
+import com.spark.companion.ui.avatar.AvatarProfile
 import com.spark.companion.ui.avatar.AvatarView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -67,6 +67,8 @@ class MainActivity : Activity() {
         super.onResume()
         engine.uiVisible.value = true
         setupBanner.visibility = if (engine.settings.apiKey.isEmpty()) View.VISIBLE else View.GONE
+        // Pick up avatars created or edited in the studio.
+        renderStyleRow(engine.avatar.value)
         renderWakeChip()
         // The wake word is on by default and needs the microphone: ask once.
         if (engine.settings.wakeWordEnabled && !micGranted() && !askedForMic) {
@@ -130,9 +132,9 @@ class MainActivity : Activity() {
         scope.launch { engine.level.collect { avatar.level = it } }
         scope.launch { engine.mood.collect { avatar.mood = it } }
         scope.launch {
-            engine.avatarStyle.collect { style ->
-                avatar.style = style
-                renderStyleRow(style)
+            engine.avatar.collect { profile ->
+                avatar.profile = profile
+                renderStyleRow(profile)
             }
         }
         scope.launch {
@@ -157,7 +159,7 @@ class MainActivity : Activity() {
     private fun renderState(state: EngineState, partial: String, caption: String, awake: Boolean) {
         avatar.awake = awake
         avatar.phase = state.phase
-        val name = engine.avatarStyle.value.displayName
+        val name = engine.avatar.value.name
         status.text = when (state.phase) {
             Phase.IDLE -> when {
                 awake -> "Tap me to talk"
@@ -180,24 +182,34 @@ class MainActivity : Activity() {
         wakeChip.background = Ui.rounded(if (on) Ui.OK else Ui.SURFACE, Ui.dp(this, 14).toFloat())
     }
 
-    private fun renderStyleRow(selected: AvatarStyle) {
+    private fun renderStyleRow(selected: AvatarProfile) {
         styleRow.removeAllViews()
-        for (style in AvatarStyle.values()) {
-            val chosen = style == selected
-            val chip = Ui.text(this, style.displayName, 14f, if (chosen) Ui.BG else Ui.TEXT, bold = chosen).apply {
+        val chipParams = {
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                .apply { marginStart = Ui.dp(this@MainActivity, 4); marginEnd = Ui.dp(this@MainActivity, 4) }
+        }
+        for (profile in engine.avatars.all()) {
+            val chosen = profile.id == selected.id
+            val chip = Ui.text(this, profile.name, 14f, if (chosen) Ui.BG else Ui.TEXT, bold = chosen).apply {
                 gravity = Gravity.CENTER
-                background = Ui.rounded(if (chosen) style.accent else Ui.SURFACE, Ui.dp(this@MainActivity, 16).toFloat())
+                background = Ui.rounded(if (chosen) profile.accent else Ui.SURFACE, Ui.dp(this@MainActivity, 16).toFloat())
                 setPadding(Ui.dp(this@MainActivity, 16), Ui.dp(this@MainActivity, 7), Ui.dp(this@MainActivity, 16), Ui.dp(this@MainActivity, 7))
-                contentDescription = "${style.displayName}, ${style.tagline}"
+                contentDescription = "${profile.name}, ${profile.tagline}"
                 setOnClickListener {
-                    engine.settings.avatar = style.name
+                    engine.settings.avatar = profile.id
                     engine.refreshSettings()
                 }
             }
-            styleRow.addView(chip, LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { marginStart = Ui.dp(this@MainActivity, 4); marginEnd = Ui.dp(this@MainActivity, 4) })
+            styleRow.addView(chip, chipParams())
         }
+        val create = Ui.text(this, "＋ Create", 14f, Ui.ACCENT, bold = true).apply {
+            gravity = Gravity.CENTER
+            background = Ui.rounded(Ui.SURFACE, Ui.dp(this@MainActivity, 16).toFloat(), Ui.ACCENT, Ui.dp(this@MainActivity, 1))
+            setPadding(Ui.dp(this@MainActivity, 16), Ui.dp(this@MainActivity, 7), Ui.dp(this@MainActivity, 16), Ui.dp(this@MainActivity, 7))
+            contentDescription = "Create your own avatar"
+            setOnClickListener { startActivity(Intent(this@MainActivity, AvatarStudioActivity::class.java)) }
+        }
+        styleRow.addView(create, chipParams())
     }
 
     private fun renderMessages(messages: List<ChatMessage>) {
@@ -287,8 +299,15 @@ class MainActivity : Activity() {
         styleRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
+            setPadding(pad, 0, pad, 0)
         }
-        root.addView(styleRow, LinearLayout.LayoutParams(
+        // Scrolls sideways once you've made a few avatars of your own.
+        val styleScroll = android.widget.HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            isFillViewport = true
+            addView(styleRow, ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        }
+        root.addView(styleScroll, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
         ))
         wakeChip = Ui.text(this, "", 13f, Ui.TEXT_DIM, bold = true).apply {

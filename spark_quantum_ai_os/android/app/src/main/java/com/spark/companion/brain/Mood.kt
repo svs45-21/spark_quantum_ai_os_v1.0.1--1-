@@ -22,27 +22,9 @@ enum class Mood(val tag: String) {
             "worried" to CONCERNED, "caring" to LOVING, "warm" to LOVING, "curious" to THOUGHTFUL,
             "shocked" to SURPRISED, "amazed" to SURPRISED, "teasing" to PLAYFUL, "proud" to HAPPY,
         )
-        private val ANY_TAG = Regex("\\[\\s*([A-Za-z]+)\\s*]\\s*")
-
         fun of(word: String): Mood? = word.lowercase().let { BY_TAG[it] ?: ALIASES[it] }
 
-        /**
-         * Splits "[happy] Hello!" into (HAPPY, "Hello!"). Removes every mood
-         * tag in the text, and leaves other bracketed text alone. The mood is
-         * null when the reply has no recognised tag.
-         */
-        fun split(text: String): Pair<Mood?, String> {
-            var mood: Mood? = null
-            val clean = ANY_TAG.replace(text) { m ->
-                val found = of(m.groupValues[1])
-                if (found != null) {
-                    if (mood == null) mood = found
-                    ""
-                } else {
-                    m.value
-                }
-            }
-            return mood to clean.trim()
-        }
+        /** Splits "[happy] Hello!" into (HAPPY, "Hello!"); see [ReplyTags]. */
+        fun split(text: String): Pair<Mood?, String> = ReplyTags.parse(text).let { it.mood to it.text }
     }
 }

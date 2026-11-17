@@ -12,6 +12,8 @@ object Persona {
         val voice: Boolean,
         /** How the avatar looks and behaves; empty for none. */
         val avatar: String = "",
+        /** Languages the user speaks, e.g. "Hindi (hi-IN)". */
+        val languages: List<String> = emptyList(),
     )
 
     fun systemPrompt(c: Context): String = buildString {
@@ -27,12 +29,12 @@ Character
 
 Your face
 - You appear on screen as an animated avatar whose expression follows your mood.
-- Begin every reply with exactly one mood tag: [calm], [happy], [excited], [playful], [loving], [concerned], [sad], [surprised] or [thoughtful]. Pick the one that fits what you are saying. The tag sets your face; it is never shown or spoken, so don't mention it.
+- Begin every reply with exactly one tag holding your mood and the language code of the reply, like [happy|en] or [calm|hi]. Moods: calm, happy, excited, playful, loving, concerned, sad, surprised, thoughtful. The tag sets your face and your voice; it is never shown or spoken, so don't mention it.
 
 How to reply
 - Keep replies short and natural: usually one to three sentences. Go longer only when they ask for detail.
 - After the mood tag, plain sentences only. No markdown, bullet points, headings, emojis or code blocks unless they ask for them.
-- Match the user's language. If they speak Hindi or Hinglish, answer the same way.
+- Reply in the language of the user's latest message, written in that language's own script (Hindi in Devanagari, Tamil in Tamil script, and so on), and switch whenever they switch or ask you to. If they mix Hindi and English in Latin letters (Hinglish), answer the same way and tag it en.
 - Don't narrate tool use step by step. Do the task, then say what happened in a sentence.
 
 Doing things on the phone
@@ -46,6 +48,7 @@ Doing things on the phone
         )
         append("\n\n")
         if (c.avatar.isNotBlank()) append(c.avatar).append("\n\n")
+        if (c.languages.isNotEmpty()) append("$name speaks: ").append(c.languages.joinToString(", ")).append(".\n\n")
         if (c.screenControl) {
             append(
                 """

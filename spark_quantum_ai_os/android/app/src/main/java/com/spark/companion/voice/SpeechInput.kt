@@ -67,20 +67,31 @@ class SpeechInput(private val context: Context) {
      * Listens for one utterance. Returns the recognised text, or null if
      * nothing was heard or recognition failed (see [lastError]).
      */
+    /** Language the recogniser reported hearing in the last listen (Android 14+), or null. */
+    var detectedLanguage: String? = null
+        private set
+
+    /**
+     * Listens for one utterance in [language]. On Android 14+ it may also
+     * switch to any of [alsoAllowed] if that's what the user speaks.
+     */
     suspend fun listen(
         language: String,
         onPartial: (String) -> Unit = {},
         onLevel: (Float) -> Unit = {},
         onDevice: Boolean = false,
-    ): String? = withTimeoutOrNull(25_000) { listenOnce(language, onPartial, onLevel, onDevice) }
+        alsoAllowed: List<String> = emptyList(),
+    ): String? = withTimeoutOrNull(25_000) { listenOnce(language, onPartial, onLevel, onDevice, alsoAllowed) }
 
     private suspend fun listenOnce(
         language: String,
         onPartial: (String) -> Unit,
         onLevel: (Float) -> Unit,
         onDevice: Boolean,
+        alsoAllowed: List<String>,
     ): String? = suspendCancellableCoroutine { cont ->
         lastError = 0
+        detectedLanguage = null
         val recognizer = try {
             val component = recognizerComponent()
             when {
@@ -134,6 +145,10 @@ class SpeechInput(private val context: Context) {
                 lastError = error
                 finish(null)
             }
+
+            override fun onLanguageDetection(results: Bundle) {
+                detectedLanguage = results.getString(SpeechRecognizer.DETECTED_LANGUAGE)
+            }
         })
 
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
@@ -142,6 +157,15 @@ class SpeechInput(private val context: Context) {
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
             putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
             if (language.isNotBlank()) putExtra(RecognizerIntent.EXTRA_LANGUAGE, language)
+            val others = alsoAllowed.filter { it.isNotBlank() }
+            if (others.size > 1 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                // Let the recogniser follow the user between the languages they speak.
+                val allowed = ArrayList(others)
+                putExtra(RecognizerIntent.EXTRA_ENABLE_LANGUAGE_DETECTION, true)
+                putStringArrayListExtra(RecognizerIntent.EXTRA_LANGUAGE_DETECTION_ALLOWED_LANGUAGES, allowed)
+                putExtra(RecognizerIntent.EXTRA_ENABLE_LANGUAGE_SWITCH, RecognizerIntent.LANGUAGE_SWITCH_BALANCED)
+                putStringArrayListExtra(RecognizerIntent.EXTRA_LANGUAGE_SWITCH_ALLOWED_LANGUAGES, allowed)
+            }
         }
         try {
             recognizer.startListening(intent)

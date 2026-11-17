@@ -30,6 +30,9 @@ abstract class AvatarPainter(val accent: Int) {
 
     abstract fun drawHead(c: Canvas, p: Pose, t: Float)
 
+    /** True when the painter tilts and bobs the head itself (photo avatars warp it). */
+    open val ownsHeadMotion: Boolean = false
+
     protected fun alpha(color: Int, a: Float): Int =
         Color.argb((a.coerceIn(0f, 1f) * 255).toInt(), Color.red(color), Color.green(color), Color.blue(color))
 
