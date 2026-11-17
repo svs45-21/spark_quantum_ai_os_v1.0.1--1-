@@ -14,6 +14,8 @@ class Settings(context: Context) {
     // Decrypting hits the Keystore, so secrets are cached after first read.
     @Volatile private var apiKeyCache: String? = null
     @Volatile private var tokenCache: String? = null
+    @Volatile private var groqKeyCache: String? = null
+    @Volatile private var openRouterKeyCache: String? = null
 
     var apiKey: String
         get() = apiKeyCache ?: SecretStore.decrypt(prefs.getString("api_key", null)).also { apiKeyCache = it }
@@ -21,6 +23,22 @@ class Settings(context: Context) {
             val clean = value.trim()
             apiKeyCache = clean
             prefs.edit().putString("api_key", if (clean.isEmpty()) null else SecretStore.encrypt(clean)).apply()
+        }
+
+    var groqApiKey: String
+        get() = groqKeyCache ?: SecretStore.decrypt(prefs.getString("groq_key", null)).also { groqKeyCache = it }
+        set(value) {
+            val clean = value.trim()
+            groqKeyCache = clean
+            prefs.edit().putString("groq_key", if (clean.isEmpty()) null else SecretStore.encrypt(clean)).apply()
+        }
+
+    var openRouterApiKey: String
+        get() = openRouterKeyCache ?: SecretStore.decrypt(prefs.getString("openrouter_key", null)).also { openRouterKeyCache = it }
+        set(value) {
+            val clean = value.trim()
+            openRouterKeyCache = clean
+            prefs.edit().putString("openrouter_key", if (clean.isEmpty()) null else SecretStore.encrypt(clean)).apply()
         }
 
     var serverToken: String
@@ -76,6 +94,31 @@ class Settings(context: Context) {
     var ttsModel: String
         get() = prefs.getString("tts_model", null)?.takeIf { it.isNotBlank() } ?: GeminiMedia.DEFAULT_TTS_MODEL
         set(value) = prefs.edit().putString("tts_model", value.trim()).apply()
+
+    /** Which brain answers: "gemini", "groq" or "openrouter". */
+    var chatProvider: String
+        get() = prefs.getString("chat_provider", "gemini") ?: "gemini"
+        set(value) = prefs.edit().putString("chat_provider", value).apply()
+
+    var groqModel: String
+        get() = prefs.getString("groq_model", null)?.takeIf { it.isNotBlank() } ?: com.spark.companion.brain.OpenAiCompatClient.DEFAULT_GROQ_MODEL
+        set(value) = prefs.edit().putString("groq_model", value.trim()).apply()
+
+    var openRouterModel: String
+        get() = prefs.getString("openrouter_model", null)?.takeIf { it.isNotBlank() } ?: com.spark.companion.brain.OpenAiCompatClient.DEFAULT_OPENROUTER_MODEL
+        set(value) = prefs.edit().putString("openrouter_model", value.trim()).apply()
+
+    /** Which image generator makes avatars: "gemini" or "pollinations" (free). */
+    var imageProvider: String
+        get() = prefs.getString("image_provider", "gemini") ?: "gemini"
+        set(value) = prefs.edit().putString("image_provider", value).apply()
+
+    /** The API key for the current chat provider (empty for Pollinations/Gemini-free is handled elsewhere). */
+    fun chatKeyFor(provider: String): String = when (provider) {
+        "groq" -> groqApiKey
+        "openrouter" -> openRouterApiKey
+        else -> apiKey
+    }
 
     var wakeWord: String
         get() = prefs.getString("wake_word", null)?.takeIf { it.isNotBlank() } ?: "spark"

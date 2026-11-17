@@ -15,6 +15,16 @@ Open **Avatar Studio** (the **＋ Create** chip under the avatar, or Settings �
 
 The eye and mouth dots are then placed for you automatically; nudge any that are off, watch the live preview talk, blink and smile, and give it a name, a personality and a voice. Spark becomes that character, and its personality shapes how it talks. Use photos of yourself or of people who are happy to be an avatar.
 
+### Brains and image makers (all have free options)
+
+Spark's thinking can run on any of three providers, chosen in **Settings → Brain**:
+
+- **Google Gemini** — free tier, free key at aistudio.google.com/apikey. Also powers AI avatar images and natural voices.
+- **Groq** — free tier, free key at console.groq.com/keys. Very fast; good at operating the phone.
+- **OpenRouter** — free tier, free key at openrouter.ai/keys. Pick a model whose name ends in `:free`. Not every free model can call tools, so some can chat but not operate the phone.
+
+You can switch any time; the conversation carries over. For avatar images, **Settings → Avatar images** offers **Pollinations** (free, no key, no quota) for creating an avatar from a description, or **Gemini** (free-tier quota). Restyling one of your own photos always uses Gemini. A fully free setup: Groq for the brain, Pollinations for images, the phone's own voice.
+
 ### Languages and voices
 
 Tick the languages you speak in **Settings → Languages**. Spark answers in whichever one you use, written in its own script, and switches when you do. The voice switches with it, and listening follows the conversation. On Android 14+ the recogniser can also auto-detect between your languages.
@@ -38,6 +48,7 @@ You can say the wake word and your request in one breath ("Spark, set an alarm f
 | Area | Abilities |
 |---|---|
 | Avatar Studio | Your own avatars from a photo (as-is or AI-restyled) or from a description, with realistic face animation. |
+| Providers | Brain runs on Gemini, Groq or OpenRouter (all free tiers); avatar images on Pollinations (free, no key) or Gemini. Switchable in Settings. |
 | Languages | 27 languages; replies, voice and listening follow the language you speak. Optional Gemini natural voices with emotion. |
 | Avatar | Three animated characters with sleep, wake-up, listening, thinking, working and speaking animations, lip-sync and mood expressions. A floating avatar appears over other apps when it wakes. |
 | Wake word | Always-on "Spark" detection (also hears "Sparky", "Sparks", "स्पार्क"). On Android 12+ it uses the phone's offline recogniser, which usually doesn't beep. |
@@ -103,7 +114,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ```
 app/src/main/java/com/spark/companion/
-├── brain/      Gemini client, tool catalog, agent loop, persona, safety policy (pure Kotlin, unit-tested)
+├── brain/      Providers (Gemini, Groq, OpenRouter), image makers (Gemini, Pollinations), agent loop, persona, safety policy
 ├── engine/     SparkEngine: conversation, voice loop, confirmations; foreground service
 ├── phone/      PhoneTools (every action), Accessibility service + overlay, screen reader, notifications
 ├── voice/      Speech recognition and text-to-speech

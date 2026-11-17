@@ -7,6 +7,9 @@ import com.spark.companion.brain.ActionPolicy
 import com.spark.companion.brain.Agent
 import com.spark.companion.brain.ConfirmRequest
 import com.spark.companion.brain.GeminiClient
+import com.spark.companion.brain.Msg
+import com.spark.companion.brain.OpenAiCompatClient
+import com.spark.companion.brain.RoutingLlm
 import com.spark.companion.brain.Greetings
 import com.spark.companion.brain.LlmException
 import com.spark.companion.brain.Languages
@@ -61,7 +64,15 @@ class SparkEngine(private val context: Context) {
     private val speaker = Speaker(context)
     private val link = SparkLink({ settings.serverUrl }, { settings.serverToken })
     private val tools = PhoneTools(context, settings, memory, link) { uiVisible.value }
-    private val agent = Agent(GeminiClient({ settings.apiKey }, { settings.model }), tools)
+    private val llm = RoutingLlm(
+        provider = { settings.chatProvider },
+        clients = mapOf(
+            RoutingLlm.GEMINI to GeminiClient({ settings.apiKey }, { settings.model }),
+            RoutingLlm.GROQ to OpenAiCompatClient.groq({ settings.groqApiKey }, { settings.groqModel }),
+            RoutingLlm.OPENROUTER to OpenAiCompatClient.openRouter({ settings.openRouterApiKey }, { settings.openRouterModel }),
+        ),
+    )
+    private val agent = Agent(llm, tools)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var job: Job? = null
@@ -221,15 +232,15 @@ class SparkEngine(private val context: Context) {
         }
     }
 
-    suspend fun testGemini(): String = try {
-        val reply = GeminiClient({ settings.apiKey }, { settings.model }).generate(
+suspend fun testGemini(): String = try {
+        val reply = llm.generate(
             "Reply with one short friendly sentence.",
-            listOf(com.spark.companion.brain.Content.userText("Say hello to confirm you are working.")),
+            listOf(Msg.User("Say hello to confirm you are working.")),
             org.json.JSONArray()
         )
         "Connected: " + reply.text
     } catch (e: LlmException) {
-        e.message ?: "Gemini test failed."
+        e.message ?: "Connection test failed."
     }
 
     suspend fun testDesktopLink(): Boolean = link.ping()

@@ -163,16 +163,53 @@ class SettingsActivity : Activity() {
 
         section(
             "BRAIN",
-            "Spark thinks with Google's Gemini. Create a free key at aistudio.google.com/apikey and paste it here. " +
-                "It is stored encrypted on this phone and sent only to Google."
+            "Who does Spark think with? All three have free tiers. Keys are stored encrypted on this phone."
         )
+        val brains = android.widget.RadioGroup(this).apply { orientation = android.widget.RadioGroup.VERTICAL }
+        for ((key, label) in com.spark.companion.brain.RoutingLlm.PROVIDERS) {
+            brains.addView(android.widget.RadioButton(this).apply {
+                id = View.generateViewId()
+                text = label
+                setTextColor(Ui.TEXT)
+                textSize = 15.5f
+                isChecked = settings.chatProvider == key
+                setOnCheckedChangeListener { _, checked -> if (checked) settings.chatProvider = key }
+            })
+        }
+        content.addView(brains)
+
+        note("Google Gemini — free key at aistudio.google.com/apikey. Also used for avatar images and natural voices.")
         field("Gemini API key", settings.apiKey, "AIza…", secret = true) { settings.apiKey = it }
-        field("Model", settings.model, "gemini-2.5-flash") { settings.model = it }
-        action("Test Gemini connection") {
+        field("Gemini model", settings.model, "gemini-2.5-flash") { settings.model = it }
+
+        note("Groq — free key at console.groq.com/keys. Very fast; good for phone control.")
+        field("Groq API key", settings.groqApiKey, "gsk_…", secret = true) { settings.groqApiKey = it }
+        field("Groq model", settings.groqModel, com.spark.companion.brain.OpenAiCompatClient.DEFAULT_GROQ_MODEL) { settings.groqModel = it }
+
+        note("OpenRouter — free key at openrouter.ai/keys. Pick a model ending in “:free”. Not every free model can control the phone.")
+        field("OpenRouter API key", settings.openRouterApiKey, "sk-or-…", secret = true) { settings.openRouterApiKey = it }
+        field("OpenRouter model", settings.openRouterModel, com.spark.companion.brain.OpenAiCompatClient.DEFAULT_OPENROUTER_MODEL) { settings.openRouterModel = it }
+
+        action("Test the selected brain") {
             save()
             toast("Testing…")
             scope.launch { toast(engine.testGemini()) }
         }
+
+        section("AVATAR IMAGES", "How AI makes avatars from a description. Pollinations is free with no key or quota.")
+        val imageProviders = android.widget.RadioGroup(this).apply { orientation = android.widget.RadioGroup.VERTICAL }
+        for ((key, label) in listOf("pollinations" to "Pollinations (free, no key)", "gemini" to "Gemini (free-tier quota)")) {
+            imageProviders.addView(android.widget.RadioButton(this).apply {
+                id = View.generateViewId()
+                text = label
+                setTextColor(Ui.TEXT)
+                textSize = 15.5f
+                isChecked = settings.imageProvider == key
+                setOnCheckedChangeListener { _, checked -> if (checked) settings.imageProvider = key }
+            })
+        }
+        content.addView(imageProviders)
+        note("Restyling one of your own photos always uses Gemini (the free image maker can only create from a description).")
 
         section("AVATAR", "Pick who Spark appears as, or create your own from a photo or a description.")
         action("Open Avatar Studio", Ui.ACCENT, Ui.BG) {

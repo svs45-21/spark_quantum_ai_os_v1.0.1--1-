@@ -16,15 +16,12 @@ class Agent(
     private val maxHistory: Int = 60,
 ) {
     interface Listener {
-        /** A tool is about to run; [status] is a short description for the UI. */
         fun onAction(status: String) {}
-        /** Text the model said alongside tool calls (not the final answer). */
         fun onInterimText(text: String) {}
     }
 
-    private val history = ArrayList<JSONObject>()
+    private val history = ArrayList<Msg>()
 
-    /** Set by the end_conversation tool; read and cleared by the engine. */
     @Volatile
     var endRequested = false
 
@@ -33,19 +30,12 @@ class Agent(
     /** Restores earlier plain-text turns (e.g. after the app restarts). */
     fun seed(turns: List<Pair<Boolean, String>>) {
         history.clear()
-        // The API expects the conversation to open with a user turn.
         turns.dropWhile { !it.first }
-            .forEach { (isUser, text) ->
-                history.add(if (isUser) Content.userText(text) else Content.modelText(text))
-            }
+            .forEach { (isUser, text) -> history.add(if (isUser) Msg.User(text) else Msg.Assistant(text)) }
     }
 
     fun clear() = history.clear()
 
-    /**
-     * Handles one user message and returns the spoken/visible answer.
-     * @param confirm asks the user to approve a risky action
-     */
     suspend fun respond(
         userText: String,
         system: suspend () -> String,
@@ -54,23 +44,23 @@ class Agent(
         listener: Listener = object : Listener {},
     ): String {
         val mark = history.size
-        history.add(Content.userText(userText))
+        history.add(Msg.User(userText))
         try {
             var declined = 0
             repeat(maxSteps) {
                 val reply = llm.generate(system(), history, tools)
-                history.add(reply.content)
+                history.add(reply.assistant)
                 if (reply.calls.isEmpty()) {
                     trim()
                     return reply.text
                 }
                 if (reply.text.isNotBlank()) listener.onInterimText(reply.text)
 
-                val results = ArrayList<Pair<String, JSONObject>>()
+                val results = ArrayList<ToolResult>()
                 for (call in reply.calls) {
                     if (call.name == "end_conversation") {
                         endRequested = true
-                        results.add(call.name to JSONObject().put("ok", true))
+                        results.add(ToolResult(call.id, call.name, JSONObject().put("ok", true)))
                         continue
                     }
                     val request = host.confirmationFor(call)
@@ -79,27 +69,28 @@ class Agent(
                         if (!confirm(request)) {
                             declined++
                             results.add(
-                                call.name to JSONObject()
-                                    .put("ok", false)
-                                    .put("error", "The user did not approve this action. Do not retry it.")
+                                ToolResult(
+                                    call.id, call.name,
+                                    JSONObject().put("ok", false)
+                                        .put("error", "The user did not approve this action. Do not retry it.")
+                                )
                             )
                             continue
                         }
                     }
                     listener.onAction(host.describe(call))
-                    results.add(call.name to host.execute(call))
+                    results.add(ToolResult(call.id, call.name, host.execute(call)))
                 }
-                history.add(Content.toolResults(results))
+                history.add(Msg.ToolResults(results))
                 if (declined >= 3) {
-                    // The model keeps trying things the user refuses; stop here.
                     val text = "Okay, I've stopped. Tell me what you'd like me to do instead."
-                    history.add(Content.modelText(text))
+                    history.add(Msg.Assistant(text))
                     trim()
                     return text
                 }
             }
             val text = "That took more steps than I'm allowed in one go, so I stopped. Want me to keep going?"
-            history.add(Content.modelText(text))
+            history.add(Msg.Assistant(text))
             trim()
             return text
         } catch (e: CancellationException) {
@@ -111,15 +102,12 @@ class Agent(
         }
     }
 
-    /**
-     * Drops a half-finished turn so the history never ends on an unanswered
-     * function call, which the API would reject on the next request.
-     */
+    /** Drops a half-finished turn so the history never ends on an unanswered call. */
     private fun rollback(mark: Int, userText: String, note: String?) {
         while (history.size > mark) history.removeAt(history.size - 1)
         if (note != null) {
-            history.add(Content.userText(userText))
-            history.add(Content.modelText(note))
+            history.add(Msg.User(userText))
+            history.add(Msg.Assistant(note))
         }
     }
 
@@ -127,7 +115,7 @@ class Agent(
     private fun trim() {
         if (history.size <= maxHistory) return
         var cut = history.size - maxHistory
-        while (cut < history.size && !Content.isUserText(history[cut])) cut++
+        while (cut < history.size && history[cut] !is Msg.User) cut++
         if (cut >= history.size) return
         repeat(cut) { history.removeAt(0) }
     }

@@ -19,8 +19,10 @@ import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import com.spark.companion.SparkApp
-import com.spark.companion.brain.GeminiHttp
+import com.spark.companion.brain.GeminiImageGen
 import com.spark.companion.brain.GeminiMedia
+import com.spark.companion.brain.ImageGen
+import com.spark.companion.brain.PollinationsImageGen
 import com.spark.companion.brain.LlmException
 import com.spark.companion.engine.Phase
 import com.spark.companion.ui.avatar.AvatarProfile
@@ -316,6 +318,8 @@ class AvatarStudioActivity : Activity() {
     private fun buildDescribe() {
         title("Describe your avatar")
         note("Who should Spark look like? Describe the face, age, hair, clothes and vibe.")
+        val free = engine.settings.imageProvider == "pollinations"
+        note(if (free) "Using the free image maker (Pollinations) — no key, no quota." else "Using Gemini (free-tier quota). You can switch to the free image maker in Spark settings.")
         field("e.g. a cheerful woman in her twenties with curly black hair, a yellow kurta and a warm smile", description, multiline = true) {
             description = it
         }
@@ -329,19 +333,25 @@ class AvatarStudioActivity : Activity() {
     }
 
     /** Asks Gemini for a portrait, then moves to the editor. */
+    /** Picks the image generator: Pollinations (free) unless restyling a photo. */
+    private fun imageGen(needsPhoto: Boolean): ImageGen {
+        val gemini = GeminiImageGen({ engine.settings.apiKey }, { engine.settings.imageModel })
+        if (needsPhoto) return gemini
+        return if (engine.settings.imageProvider == "pollinations") PollinationsImageGen() else gemini
+    }
+
     private fun generate(prompt: String, source: Bitmap?) {
-        if (engine.settings.apiKey.isBlank()) {
-            toast("Add your Gemini API key in Spark settings first.")
+        val gen = imageGen(needsPhoto = source != null)
+        if (gen is GeminiImageGen && engine.settings.apiKey.isBlank()) {
+            toast("Add your Gemini API key in Spark settings, or switch to the free image maker in Settings.")
             return
         }
-        working("Gemini is drawing your avatar…") {
+        val label = if (gen is PollinationsImageGen) "Drawing your avatar (free)…" else "Gemini is drawing your avatar…"
+        working(label) {
             val bytes = withContext(Dispatchers.Default) { source?.let { FaceTools.jpeg(it) } }
-            val body = GeminiMedia.imageRequest(prompt, bytes).toString()
-            val url = GeminiHttp.endpoint(engine.settings.imageModel, GeminiMedia.DEFAULT_IMAGE_MODEL)
-            val reply = GeminiHttp.post(url, engine.settings.apiKey, body, 180_000)
-            val image = GeminiMedia.parseImage(reply)
+            val image = gen.generate(prompt, bytes)
             val bitmap = withContext(Dispatchers.Default) { FaceTools.decode(image) }
-                ?: throw LlmException("Gemini's image couldn't be opened.")
+                ?: throw LlmException("The generated image couldn't be opened.")
             val framed = withContext(Dispatchers.Default) { FaceTools.portrait(bitmap, tight = false) }
             startNew(framed)
             show(Screen.EDIT)
