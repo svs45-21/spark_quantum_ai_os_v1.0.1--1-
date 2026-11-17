@@ -174,24 +174,39 @@ class SettingsActivity : Activity() {
             scope.launch { toast(engine.testGemini()) }
         }
 
-        section("AVATAR", "Pick who Spark is. Each one has its own look and personality. You can also switch from the main screen.")
-        val styles = android.widget.RadioGroup(this).apply { orientation = android.widget.RadioGroup.VERTICAL }
-        for (style in com.spark.companion.ui.avatar.AvatarStyle.values()) {
-            styles.addView(android.widget.RadioButton(this).apply {
-                id = View.generateViewId()
-                text = "${style.displayName}: ${style.tagline}"
+        section("AVATAR", "Pick who Spark appears as, or create your own from a photo or a description.")
+        action("Open Avatar Studio", Ui.ACCENT, Ui.BG) {
+            startActivity(Intent(this, AvatarStudioActivity::class.java))
+        }
+
+        section(
+            "LANGUAGES",
+            "Tick every language you speak; put a tick on your main one first. Spark answers in whichever you use, " +
+                "with a matching voice, and switches when you do."
+        )
+        val chosen = settings.languages.toMutableList()
+        val boxes = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        for (lang in com.spark.companion.brain.Languages.ALL) {
+            boxes.addView(android.widget.CheckBox(this).apply {
+                text = if (lang.native == lang.english || lang.native == "English") lang.english else "${lang.english} · ${lang.native}"
                 setTextColor(Ui.TEXT)
-                textSize = 15.5f
-                isChecked = settings.avatar == style.name
+                textSize = 15f
+                isChecked = lang.tag in chosen
                 setOnCheckedChangeListener { _, checked ->
-                    if (checked) {
-                        settings.avatar = style.name
-                        engine.refreshSettings()
-                    }
+                    if (checked) { if (lang.tag !in chosen) chosen.add(lang.tag) } else chosen.remove(lang.tag)
+                    if (chosen.isNotEmpty()) settings.languages = chosen
                 }
             })
         }
-        content.addView(styles)
+        content.addView(boxes)
+        note("Main language now: the first one you ticked. For the best accent, install voices for your languages in the phone's Settings → Text-to-speech, or use Gemini voices below.")
+        action("Phone text-to-speech settings") {
+            try {
+                startActivity(Intent("com.android.settings.TTS_SETTINGS"))
+            } catch (e: Exception) {
+                open(SystemSettings.ACTION_SETTINGS)
+            }
+        }
 
         section("VOICE")
         toggle("Speak replies aloud", "Turn off for silent, text-only answers", settings.speakReplies) {
@@ -201,8 +216,23 @@ class SettingsActivity : Activity() {
             "Keep the conversation going", "Listen again after each reply until you stop talking",
             settings.continuous
         ) { settings.continuous = it }
-        field("Speech language (optional)", settings.language, "e.g. en-IN or hi-IN; blank = phone default") {
-            settings.language = it
+        note("Voice: the phone's own voices are free and instant. Gemini natural voices sound far more human, carry emotion and handle every language, but take a moment longer and use your Gemini API quota.")
+        val engines = android.widget.RadioGroup(this).apply { orientation = android.widget.RadioGroup.VERTICAL }
+        for ((key, label) in listOf("phone" to "Phone voice", "gemini" to "Gemini natural voice")) {
+            engines.addView(android.widget.RadioButton(this).apply {
+                id = View.generateViewId()
+                text = label
+                setTextColor(Ui.TEXT)
+                textSize = 15.5f
+                isChecked = settings.voiceEngine == key
+                setOnCheckedChangeListener { _, checked -> if (checked) settings.voiceEngine = key }
+            })
+        }
+        content.addView(engines)
+        action("Hear my avatar") {
+            save()
+            engine.testVoice()
+            toast("Listen…")
         }
         toggle(
             "Floating avatar",
@@ -253,6 +283,10 @@ class SettingsActivity : Activity() {
                 toast(if (engine.testDesktopLink()) "Connected to SPARK on your computer." else "Couldn't reach that address.")
             }
         }
+
+        section("ADVANCED", "Gemini model names, in case Google renames them.")
+        field("Image model (avatar creation)", settings.imageModel, com.spark.companion.brain.GeminiMedia.DEFAULT_IMAGE_MODEL) { settings.imageModel = it }
+        field("Voice model (natural voices)", settings.ttsModel, com.spark.companion.brain.GeminiMedia.DEFAULT_TTS_MODEL) { settings.ttsModel = it }
 
         section("MEMORY", "Everything Spark remembers stays in a private database on this phone.")
         action("Forget everything Spark knows about me", Ui.SURFACE_HI, Ui.DANGER) {

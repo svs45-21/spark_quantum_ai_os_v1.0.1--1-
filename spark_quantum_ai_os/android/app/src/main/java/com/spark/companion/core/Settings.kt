@@ -3,6 +3,8 @@ package com.spark.companion.core
 import android.content.Context
 import android.content.SharedPreferences
 import com.spark.companion.brain.GeminiClient
+import com.spark.companion.brain.GeminiMedia
+import com.spark.companion.brain.Languages
 
 /** User preferences. Secrets are stored encrypted (see [SecretStore]). */
 class Settings(context: Context) {
@@ -42,10 +44,38 @@ class Settings(context: Context) {
         get() = prefs.getString("server_url", "") ?: ""
         set(value) = prefs.edit().putString("server_url", value.trim().trimEnd('/')).apply()
 
-    /** BCP-47 tag for speech (e.g. en-IN, hi-IN). Empty = phone default. */
+    /** BCP-47 tag for speech (e.g. en-IN, hi-IN). Empty = phone default. Kept for older installs. */
     var language: String
         get() = prefs.getString("language", "") ?: ""
         set(value) = prefs.edit().putString("language", value.trim()).apply()
+
+    /**
+     * Languages the user speaks, most-used first (BCP-47 tags). Spark replies
+     * in whichever one they use, with a matching voice.
+     */
+    var languages: List<String>
+        get() {
+            val saved = Languages.parseList(prefs.getString("languages", "") ?: "")
+            if (saved.isNotEmpty()) return saved
+            val first = language.ifBlank { java.util.Locale.getDefault().toLanguageTag() }
+            return listOf(Languages.resolve(first, emptyList()) ?: "en-IN")
+        }
+        set(value) = prefs.edit().putString("languages", value.distinct().joinToString(",")).apply()
+
+    val primaryLanguage: String get() = languages.first()
+
+    /** "phone" for the phone's own voices, "gemini" for Gemini's natural voices. */
+    var voiceEngine: String
+        get() = prefs.getString("voice_engine", "phone") ?: "phone"
+        set(value) = prefs.edit().putString("voice_engine", value).apply()
+
+    var imageModel: String
+        get() = prefs.getString("image_model", null)?.takeIf { it.isNotBlank() } ?: GeminiMedia.DEFAULT_IMAGE_MODEL
+        set(value) = prefs.edit().putString("image_model", value.trim()).apply()
+
+    var ttsModel: String
+        get() = prefs.getString("tts_model", null)?.takeIf { it.isNotBlank() } ?: GeminiMedia.DEFAULT_TTS_MODEL
+        set(value) = prefs.edit().putString("tts_model", value.trim()).apply()
 
     var wakeWord: String
         get() = prefs.getString("wake_word", null)?.takeIf { it.isNotBlank() } ?: "spark"
@@ -65,9 +95,9 @@ class Settings(context: Context) {
         get() = prefs.getBoolean("floating_orb", true)
         set(value) = prefs.edit().putBoolean("floating_orb", value).apply()
 
-    /** Which character Spark appears as (an AvatarStyle name). */
+    /** Which avatar Spark appears as: "builtin:NOVA" or "custom:<id>". */
     var avatar: String
-        get() = prefs.getString("avatar", "NOVA") ?: "NOVA"
+        get() = prefs.getString("avatar", "builtin:NOVA") ?: "builtin:NOVA"
         set(value) = prefs.edit().putString("avatar", value).apply()
 
     /** Always listen for the wake word. On by default: it's how you wake the avatar. */

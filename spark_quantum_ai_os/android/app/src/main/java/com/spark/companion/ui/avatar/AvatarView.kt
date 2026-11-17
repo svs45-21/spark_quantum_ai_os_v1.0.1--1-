@@ -22,11 +22,12 @@ import kotlin.math.sin
  */
 class AvatarView(context: Context) : View(context) {
 
-    var style: AvatarStyle = AvatarStyle.NOVA
+    /** Which avatar to show: a built-in character or a custom portrait. */
+    var profile: AvatarProfile = AvatarProfile.DEFAULT
         set(value) {
             if (field != value) {
                 field = value
-                painter = AvatarPainter.of(value)
+                painter = painterFor(value)
                 invalidate()
             }
         }
@@ -41,7 +42,13 @@ class AvatarView(context: Context) : View(context) {
     var clock: () -> Long = { SystemClock.uptimeMillis() }
 
     private val rig = AvatarRig()
-    private var painter: AvatarPainter = AvatarPainter.of(style)
+    private var painter: AvatarPainter = painterFor(profile)
+
+    /** Shows an unsaved portrait (the studio's live preview). */
+    fun preview(portrait: android.graphics.Bitmap, landmarks: FaceLandmarks, accent: Int) {
+        painter = PhotoPainter(portrait, landmarks, accent)
+        invalidate()
+    }
     private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     private val fxPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -55,7 +62,7 @@ class AvatarView(context: Context) : View(context) {
         phase == Phase.LISTENING -> Color.parseColor("#3DDC97")
         phase == Phase.THINKING -> Color.parseColor("#7C5CFF")
         phase == Phase.ACTING -> Color.parseColor("#FFB347")
-        else -> style.accent
+        else -> profile.accent
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -89,8 +96,12 @@ class AvatarView(context: Context) : View(context) {
 
         // The character.
         canvas.save()
-        canvas.translate(cx, cy + p.bob * s)
-        canvas.rotate(p.tilt)
+        if (painter.ownsHeadMotion) {
+            canvas.translate(cx, cy)
+        } else {
+            canvas.translate(cx, cy + p.bob * s)
+            canvas.rotate(p.tilt)
+        }
         canvas.scale(s * p.scale, s * p.scale)
         painter.drawHead(canvas, p, t)
         canvas.restore()
@@ -117,7 +128,7 @@ class AvatarView(context: Context) : View(context) {
         // Sparkle burst when waking up.
         if (p.sparkle > 0f && p.sparkle < 1f) {
             val k = p.sparkle
-            fxPaint.color = withAlpha(style.accent, (255 * (1f - k)).toInt())
+            fxPaint.color = withAlpha(profile.accent, (255 * (1f - k)).toInt())
             for (i in 0 until 10) {
                 val a = i * (2 * PI / 10) + 0.3
                 val r = s * (0.28f + 0.26f * k)
@@ -152,6 +163,29 @@ class AvatarView(context: Context) : View(context) {
         canvas.drawOval(-r, -r * 0.28f, r, r * 0.28f, fxPaint)
         canvas.drawOval(-r * 0.28f, -r, r * 0.28f, r, fxPaint)
         canvas.restore()
+    }
+
+    companion object {
+        private val cache = HashMap<String, AvatarPainter>()
+
+        /** Painters are cached so switching avatars doesn't re-decode portraits. */
+        fun painterFor(profile: AvatarProfile): AvatarPainter {
+            profile.builtin?.let { return AvatarPainter.of(it) }
+            val key = profile.id + "@" + (profile.portrait?.lastModified() ?: 0) + "@" + profile.landmarks.hashCode()
+            cache[key]?.let { return it }
+            val bitmap = profile.portrait?.let { AvatarRepository.loadPortrait(it) }
+            val painter = if (bitmap != null && profile.landmarks != null) {
+                PhotoPainter(bitmap, profile.landmarks, profile.accent)
+            } else {
+                AvatarPainter.of(AvatarStyle.NOVA)
+            }
+            if (cache.size > 6) cache.clear()
+            cache[key] = painter
+            return painter
+        }
+
+        /** Forget cached painters (after an avatar was edited or deleted). */
+        fun clearCache() = cache.clear()
     }
 
     private fun withAlpha(color: Int, alpha: Int): Int =

@@ -66,11 +66,20 @@ class Speaker(private val context: Context) {
         if (id != null) waiters.remove(id)?.invoke()
     }
 
+    /** Called with a language tag when the phone has no voice installed for it. */
+    var onMissingVoice: (String) -> Unit = {}
+
     /**
      * Speaks [text] and suspends until it has finished (or is cancelled).
      * [onLevel] receives the loudness of the voice, 0..1, about 30 times a second.
      */
-    suspend fun speak(text: String, language: String, onLevel: (Float) -> Unit = {}) {
+    suspend fun speak(
+        text: String,
+        language: String,
+        onLevel: (Float) -> Unit = {},
+        pitch: Float = 1f,
+        rate: Float = 1f,
+    ) {
         val clean = SpeechText.forSpeech(text)
         if (clean.isBlank()) return
         if (withTimeoutOrNull(5_000) { ready.await() } != true) return
@@ -81,7 +90,9 @@ class Speaker(private val context: Context) {
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                     .build()
             )
-            if (language.isNotBlank()) tts.language = Locale.forLanguageTag(language)
+            selectVoice(language)
+            tts.setPitch(pitch.coerceIn(0.5f, 2f))
+            tts.setSpeechRate(rate.coerceIn(0.5f, 2f))
         } catch (e: Exception) {
             // keep the engine defaults
         }
@@ -140,6 +151,38 @@ class Speaker(private val context: Context) {
         if (!wordEvents) return 0.2f + 0.7f * wobble
         val wordMs = 90L * lastWordLength.coerceIn(2, 12)
         return if (now - lastWordAt < wordMs) 0.35f + 0.6f * wobble else 0.08f * wobble
+    }
+
+    private var lastLanguage = ""
+
+    /**
+     * Switches to the best installed voice for [language]: an offline voice of
+     * the highest quality. Falls back to the phone's default when none exists.
+     */
+    private fun selectVoice(language: String) {
+        if (language.isBlank() || language == lastLanguage) return
+        val locale = Locale.forLanguageTag(language)
+        val available = tts.isLanguageAvailable(locale)
+        if (available < TextToSpeech.LANG_AVAILABLE) {
+            onMissingVoice(language)
+            // Try the bare language (e.g. "hi" when "hi-IN" is missing).
+            val bare = Locale.forLanguageTag(locale.language)
+            if (tts.isLanguageAvailable(bare) >= TextToSpeech.LANG_AVAILABLE) tts.language = bare
+            lastLanguage = language
+            return
+        }
+        val voices = try {
+            tts.voices.orEmpty()
+        } catch (e: Exception) {
+            emptySet()
+        }
+        val best = voices
+            .filter { it.locale.language == locale.language && (locale.country.isEmpty() || it.locale.country == locale.country) }
+            .filter { !it.features.orEmpty().contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED) }
+            .sortedWith(compareBy<android.speech.tts.Voice> { it.isNetworkConnectionRequired }.thenByDescending { it.quality })
+            .firstOrNull()
+        if (best != null) tts.voice = best else tts.language = locale
+        lastLanguage = language
     }
 
     fun stop() {
