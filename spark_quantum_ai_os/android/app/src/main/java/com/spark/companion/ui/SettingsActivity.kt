@@ -190,6 +190,15 @@ class SettingsActivity : Activity() {
         field("OpenRouter API key", settings.openRouterApiKey, "sk-or-…", secret = true) { settings.openRouterApiKey = it }
         field("OpenRouter model", settings.openRouterModel, com.spark.companion.brain.OpenAiCompatClient.DEFAULT_OPENROUTER_MODEL) { settings.openRouterModel = it }
 
+        note("Ollama — your own models on your PC/home server, free and private. Run Ollama and enter its address. Use a tool-capable model (llama3.1, qwen2.5) if you want Spark to operate the phone. Same Wi-Fi.")
+        field("Ollama server", settings.ollamaUrl, "http://192.168.1.20:11434") { settings.ollamaUrl = it }
+        field("Ollama model", settings.ollamaModel, com.spark.companion.brain.OpenAiCompatClient.DEFAULT_OLLAMA_MODEL) { settings.ollamaModel = it }
+
+        note("Custom — any OpenAI-compatible server (LM Studio, vLLM, LocalAI, or your own fine-tuned model). Enter its base URL, a key if it needs one, and the model name.")
+        field("Server base URL", settings.customUrl, "http://192.168.1.20:1234") { settings.customUrl = it }
+        field("API key (if needed)", settings.customApiKey, "optional", secret = true) { settings.customApiKey = it }
+        field("Model name", settings.customModel, "your-model") { settings.customModel = it }
+
         action("Test the selected brain") {
             save()
             toast("Testing…")
@@ -329,6 +338,13 @@ class SettingsActivity : Activity() {
         section("ADVANCED", "Gemini model names, in case Google renames them.")
         field("Image model (avatar creation)", settings.imageModel, com.spark.companion.brain.GeminiMedia.DEFAULT_IMAGE_MODEL) { settings.imageModel = it }
         field("Voice model (natural voices)", settings.ttsModel, com.spark.companion.brain.GeminiMedia.DEFAULT_TTS_MODEL) { settings.ttsModel = it }
+
+        section(
+            "n8n WORKFLOWS",
+            "Let Spark run your n8n automations. Enter your n8n webhook address; Spark can then trigger workflows by name (and routines can too). Use on your own network."
+        )
+        field("n8n webhook URL", settings.n8nUrl, "http://192.168.1.20:5678") { settings.n8nUrl = it }
+        field("Auth header (optional)", settings.n8nAuth, "Header-Name: value, or a token", secret = true) { settings.n8nAuth = it }
 
         section("MORE", "Spark's camera, and automations that run on their own.")
         action("Open Spark Vision (camera)") { startActivity(Intent(this, VisionActivity::class.java)) }

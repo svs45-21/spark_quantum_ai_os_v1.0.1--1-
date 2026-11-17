@@ -11,35 +11,60 @@ import org.json.JSONObject
  */
 class OpenAiCompatClient(
     private val providerLabel: String,
-    private val endpoint: String,
+    private val endpoint: () -> String,
     private val apiKey: () -> String,
     private val model: () -> String,
     private val defaultModel: String,
     private val extraHeaders: Map<String, String> = emptyMap(),
+    private val requiresKey: Boolean = true,
 ) : Llm {
 
     override suspend fun generate(system: String, history: List<Msg>, tools: JSONArray): LlmReply {
         val key = apiKey().trim()
-        if (key.isEmpty()) {
+        if (requiresKey && key.isEmpty()) {
             throw LlmException("No $providerLabel API key yet. Add one in Spark settings.")
         }
+        val url = endpoint().trim()
+        if (url.isEmpty()) {
+            throw LlmException("No $providerLabel server address yet. Add one in Spark settings.")
+        }
         val body = buildRequest(system, history, tools, model().ifBlank { defaultModel }).toString()
-        val reply = OpenAiHttp.post(endpoint, key, body, extraHeaders, providerLabel)
+        val reply = OpenAiHttp.post(url, key, body, extraHeaders, providerLabel)
         return parseResponse(reply.toString(), providerLabel)
     }
 
     companion object {
         fun groq(apiKey: () -> String, model: () -> String) = OpenAiCompatClient(
-            "Groq", "https://api.groq.com/openai/v1/chat/completions", apiKey, model, DEFAULT_GROQ_MODEL
+            "Groq", { "https://api.groq.com/openai/v1/chat/completions" }, apiKey, model, DEFAULT_GROQ_MODEL
         )
 
         fun openRouter(apiKey: () -> String, model: () -> String) = OpenAiCompatClient(
-            "OpenRouter", "https://openrouter.ai/api/v1/chat/completions", apiKey, model, DEFAULT_OPENROUTER_MODEL,
+            "OpenRouter", { "https://openrouter.ai/api/v1/chat/completions" }, apiKey, model, DEFAULT_OPENROUTER_MODEL,
             mapOf("HTTP-Referer" to "https://spark.companion", "X-Title" to "Spark")
         )
 
+        /** Ollama exposes an OpenAI-compatible endpoint; no key needed. */
+        fun ollama(baseUrl: () -> String, model: () -> String) = OpenAiCompatClient(
+            "Ollama", { chatEndpoint(baseUrl()) }, { "" }, model, DEFAULT_OLLAMA_MODEL, requiresKey = false
+        )
+
+        /** Any OpenAI-compatible server (LM Studio, vLLM, LocalAI, your own). */
+        fun custom(baseUrl: () -> String, apiKey: () -> String, model: () -> String) = OpenAiCompatClient(
+            "Your server", { chatEndpoint(baseUrl()) }, apiKey, model, "", requiresKey = false
+        )
+
+        /** Accepts a base host or a full endpoint and returns the chat-completions URL. */
+        fun chatEndpoint(url: String): String {
+            val u = url.trim().trimEnd('/')
+            if (u.isEmpty()) return ""
+            return if (u.contains("/chat/completions") || u.endsWith("/completions")) u
+            else if (u.endsWith("/v1")) "$u/chat/completions"
+            else "$u/v1/chat/completions"
+        }
+
         const val DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
         const val DEFAULT_OPENROUTER_MODEL = "meta-llama/llama-3.3-70b-instruct:free"
+        const val DEFAULT_OLLAMA_MODEL = "llama3.1"
 
         /** Converts the neutral tool declarations to OpenAI's `tools` array. */
         fun toolsArray(declarations: JSONArray): JSONArray {

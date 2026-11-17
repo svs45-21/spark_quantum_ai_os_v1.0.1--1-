@@ -47,10 +47,10 @@ object OpenAiHttp {
         try {
             conn.requestMethod = "POST"
             conn.connectTimeout = 15_000
-            conn.readTimeout = 90_000
+            conn.readTimeout = 180_000
             conn.doOutput = true
             conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-            conn.setRequestProperty("Authorization", "Bearer $key")
+            if (key.isNotBlank()) conn.setRequestProperty("Authorization", "Bearer $key")
             extraHeaders.forEach { (k, v) -> conn.setRequestProperty(k, v) }
             conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
             val code = conn.responseCode

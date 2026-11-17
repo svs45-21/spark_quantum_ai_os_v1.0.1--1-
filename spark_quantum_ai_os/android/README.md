@@ -40,6 +40,12 @@ Spark's thinking can run on any of three providers, chosen in **Settings → Bra
 - **Google Gemini** — free tier, free key at aistudio.google.com/apikey. Also powers AI avatar images and natural voices.
 - **Groq** — free tier, free key at console.groq.com/keys. Very fast; good at operating the phone.
 - **OpenRouter** — free tier, free key at openrouter.ai/keys. Pick a model whose name ends in `:free`. Not every free model can call tools, so some can chat but not operate the phone.
+- **Ollama (your own models)** — run [Ollama](https://ollama.com) on your PC or home server and enter its address (e.g. `http://192.168.1.20:11434`). Free and fully private; nothing leaves your network. Create or fine-tune your own model with an Ollama `Modelfile`. Use a tool-capable model (llama3.1, qwen2.5) if you want Spark to operate the phone.
+- **Custom (any OpenAI-compatible server)** — LM Studio, vLLM, LocalAI, or your own hosted/fine-tuned model. Enter the base URL, a key if needed, and the model name.
+
+### n8n workflows
+
+Enter your n8n webhook address in **Settings → n8n workflows**, and Spark gets a `trigger_workflow` tool: it can run the automations you've built in n8n (email, calendar, home automation, any API) by name and read back the result — by voice or from a routine. Say *"email my team the weekly update"* and, if you've wired that workflow, Spark triggers it.
 
 You can switch any time; the conversation carries over. For avatar images, **Settings → Avatar images** offers **Pollinations** (free, no key, no quota) for creating an avatar from a description, or **Gemini** (free-tier quota). Restyling one of your own photos always uses Gemini. A fully free setup: Groq for the brain, Pollinations for images, the phone's own voice.
 
@@ -69,7 +75,8 @@ You can say the wake word and your request in one breath ("Spark, set an alarm f
 | Proactive & routines | Spoken heads-up on new messages; automations that run at a time, on charger, or on incoming SMS. |
 | Quick access | Quick-settings tile, home-screen widget, and lock-screen talk. |
 | Avatar Studio | Your own avatars from a photo (as-is or AI-restyled) or from a description, with realistic face animation. |
-| Providers | Brain runs on Gemini, Groq or OpenRouter (all free tiers); avatar images on Pollinations (free, no key) or Gemini. Switchable in Settings. |
+| Providers | Brain runs on Gemini, Groq, OpenRouter, your own Ollama, or any OpenAI-compatible server (your own models). Avatar images on Pollinations (free) or Gemini. |
+| n8n | Trigger your n8n automation workflows by voice or from routines. |
 | Languages | 27 languages; replies, voice and listening follow the language you speak. Optional Gemini natural voices with emotion. |
 | Avatar | Three animated characters with sleep, wake-up, listening, thinking, working and speaking animations, lip-sync and mood expressions. A floating avatar appears over other apps when it wakes. |
 | Wake word | Always-on "Spark" detection (also hears "Sparky", "Sparks", "स्पार्क"). On Android 12+ it uses the phone's offline recogniser, which usually doesn't beep. |

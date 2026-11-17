@@ -48,6 +48,7 @@ class PhoneTools(
     private val settings: Settings,
     private val memory: MemoryStore,
     private val link: SparkLink,
+    private val n8n: com.spark.companion.brain.N8n,
     private val uiVisible: () -> Boolean,
 ) : ToolHost {
 
@@ -91,6 +92,7 @@ class PhoneTools(
             "remember" -> "Remembering that"
             "forget" -> "Forgetting that"
             "ask_desktop_spark" -> "Asking SPARK on your computer"
+            "trigger_workflow" -> "Running your workflow"
             else -> "Working"
         }
     }
@@ -181,6 +183,7 @@ class PhoneTools(
                     ok().put("forgotten", JSONArray(removed))
                 }
                 "ask_desktop_spark" -> link.ask(a.optString("request"))
+                "trigger_workflow" -> n8n.trigger(a.optString("workflow"), a.optString("input"))
                 else -> fail("Unknown tool: ${call.name}")
             }
         } catch (e: kotlinx.coroutines.CancellationException) {

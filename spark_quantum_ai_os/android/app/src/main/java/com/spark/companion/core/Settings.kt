@@ -16,6 +16,8 @@ class Settings(context: Context) {
     @Volatile private var tokenCache: String? = null
     @Volatile private var groqKeyCache: String? = null
     @Volatile private var openRouterKeyCache: String? = null
+    @Volatile private var customKeyCache: String? = null
+    @Volatile private var n8nAuthCache: String? = null
 
     var apiKey: String
         get() = apiKeyCache ?: SecretStore.decrypt(prefs.getString("api_key", null)).also { apiKeyCache = it }
@@ -113,10 +115,51 @@ class Settings(context: Context) {
         get() = prefs.getString("image_provider", "gemini") ?: "gemini"
         set(value) = prefs.edit().putString("image_provider", value).apply()
 
-    /** The API key for the current chat provider (empty for Pollinations/Gemini-free is handled elsewhere). */
+    var ollamaUrl: String
+        get() = prefs.getString("ollama_url", "") ?: ""
+        set(value) = prefs.edit().putString("ollama_url", value.trim().trimEnd('/')).apply()
+
+    var ollamaModel: String
+        get() = prefs.getString("ollama_model", null)?.takeIf { it.isNotBlank() } ?: com.spark.companion.brain.OpenAiCompatClient.DEFAULT_OLLAMA_MODEL
+        set(value) = prefs.edit().putString("ollama_model", value.trim()).apply()
+
+    var customUrl: String
+        get() = prefs.getString("custom_url", "") ?: ""
+        set(value) = prefs.edit().putString("custom_url", value.trim().trimEnd('/')).apply()
+
+    var customModel: String
+        get() = prefs.getString("custom_model", "") ?: ""
+        set(value) = prefs.edit().putString("custom_model", value.trim()).apply()
+
+    var customApiKey: String
+        get() = customKeyCache ?: SecretStore.decrypt(prefs.getString("custom_key", null)).also { customKeyCache = it }
+        set(value) {
+            val clean = value.trim()
+            customKeyCache = clean
+            prefs.edit().putString("custom_key", if (clean.isEmpty()) null else SecretStore.encrypt(clean)).apply()
+        }
+
+    /** n8n webhook base, e.g. http://192.168.1.20:5678 (or .../webhook). */
+    var n8nUrl: String
+        get() = prefs.getString("n8n_url", "") ?: ""
+        set(value) = prefs.edit().putString("n8n_url", value.trim().trimEnd('/')).apply()
+
+    /** Optional n8n auth, as "Header-Name: value" or just a bearer token. */
+    var n8nAuth: String
+        get() = n8nAuthCache ?: SecretStore.decrypt(prefs.getString("n8n_auth", null)).also { n8nAuthCache = it }
+        set(value) {
+            val clean = value.trim()
+            n8nAuthCache = clean
+            prefs.edit().putString("n8n_auth", if (clean.isEmpty()) null else SecretStore.encrypt(clean)).apply()
+        }
+
+    val n8nConfigured: Boolean get() = n8nUrl.isNotBlank()
+
+    /** The API key for the current chat provider. */
     fun chatKeyFor(provider: String): String = when (provider) {
         "groq" -> groqApiKey
         "openrouter" -> openRouterApiKey
+        "custom" -> customApiKey
         else -> apiKey
     }
 

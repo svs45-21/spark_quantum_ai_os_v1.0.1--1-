@@ -9,6 +9,7 @@ object Persona {
         val memories: List<String>,
         val screenControl: Boolean,
         val desktopLink: Boolean,
+        val workflows: Boolean = false,
         val voice: Boolean,
         /** How the avatar looks and behaves; empty for none. */
         val avatar: String = "",
@@ -65,6 +66,9 @@ Screen control is OFF (the accessibility service is not enabled), so read_screen
         append("\n\n")
         if (c.desktopLink) {
             append("The desktop SPARK system is linked. Use ask_desktop_spark for heavy research, documents, code or PC control.\n\n")
+        }
+        if (c.workflows) {
+            append("The user's n8n automations are available. Use trigger_workflow to run one when a request matches something they'd have built there.\n\n")
         }
         if (c.voice) {
             append("This is a spoken conversation: your reply will be read aloud, so write it the way you would say it.\n\n")

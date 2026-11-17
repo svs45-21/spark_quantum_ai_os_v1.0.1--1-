@@ -48,11 +48,11 @@ object ToolCatalog {
     }
 
     val names: List<String> by lazy {
-        val all = declarations(includeDesktopLink = true)
+        val all = declarations(includeDesktopLink = true, includeWorkflow = true)
         (0 until all.length()).map { all.getJSONObject(it).getString("name") }
     }
 
-    fun declarations(includeDesktopLink: Boolean): JSONArray {
+    fun declarations(includeDesktopLink: Boolean, includeWorkflow: Boolean = false): JSONArray {
         val list = mutableListOf(
             // ── Apps & web ─────────────────────────────────────────────
             tool(
@@ -256,6 +256,19 @@ object ToolCatalog {
                     "sources, writing documents (Word, PDF, PowerPoint, Excel), writing or running " +
                     "code, or controlling the PC. Returns what SPARK replied.",
                 listOf("request" to str("The full request in plain language")), listOf("request")
+            )
+        }
+        if (includeWorkflow) {
+            list += tool(
+                "trigger_workflow",
+                "Run one of the user's own n8n automation workflows by its webhook name, passing " +
+                    "the request to it, and return what it replies. Use for anything the user has " +
+                    "set up in n8n (email, calendar, home automation, external services).",
+                listOf(
+                    "workflow" to str("The workflow's webhook name/path, e.g. 'send-email' or 'daily-report'"),
+                    "input" to str("What to send to the workflow, in plain language"),
+                ),
+                listOf("workflow")
             )
         }
         return JSONArray(list)

@@ -63,13 +63,16 @@ class SparkEngine(private val context: Context) {
     private val speech = SpeechInput(context)
     private val speaker = Speaker(context)
     private val link = SparkLink({ settings.serverUrl }, { settings.serverToken })
-    private val tools = PhoneTools(context, settings, memory, link) { uiVisible.value }
+    private val n8n = com.spark.companion.brain.N8n({ settings.n8nUrl }, { settings.n8nAuth })
+    private val tools = PhoneTools(context, settings, memory, link, n8n) { uiVisible.value }
     private val llm = RoutingLlm(
         provider = { settings.chatProvider },
         clients = mapOf(
             RoutingLlm.GEMINI to GeminiClient({ settings.apiKey }, { settings.model }),
             RoutingLlm.GROQ to OpenAiCompatClient.groq({ settings.groqApiKey }, { settings.groqModel }),
             RoutingLlm.OPENROUTER to OpenAiCompatClient.openRouter({ settings.openRouterApiKey }, { settings.openRouterModel }),
+            RoutingLlm.OLLAMA to OpenAiCompatClient.ollama({ settings.ollamaUrl }, { settings.ollamaModel }),
+            RoutingLlm.CUSTOM to OpenAiCompatClient.custom({ settings.customUrl }, { settings.customApiKey }, { settings.customModel }),
         ),
     )
     private val agent = Agent(llm, tools)
@@ -380,7 +383,7 @@ suspend fun testGemini(): String = try {
             val reply = agent.respond(
                 userText = text,
                 system = { systemPrompt(voice) },
-                tools = ToolCatalog.declarations(settings.desktopLinked),
+                tools = ToolCatalog.declarations(settings.desktopLinked, settings.n8nConfigured),
                 confirm = { request -> confirm(request, voice) },
                 listener = listener,
             )
@@ -414,6 +417,7 @@ suspend fun testGemini(): String = try {
                 memories = facts,
                 screenControl = SparkAccessibilityService.instance != null,
                 desktopLink = settings.desktopLinked,
+                workflows = settings.n8nConfigured,
                 voice = voice,
                 avatar = avatar.value.prompt,
                 languages = settings.languages.map { "${Languages.name(it)} ($it)" },

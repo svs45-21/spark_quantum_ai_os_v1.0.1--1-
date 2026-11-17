@@ -18,11 +18,15 @@ class RoutingLlm(private val provider: () -> String, private val clients: Map<St
         const val GEMINI = "gemini"
         const val GROQ = "groq"
         const val OPENROUTER = "openrouter"
+        const val OLLAMA = "ollama"
+        const val CUSTOM = "custom"
 
         val PROVIDERS = listOf(
             GEMINI to "Google Gemini (free tier)",
             GROQ to "Groq (free, fast)",
             OPENROUTER to "OpenRouter (free models)",
+            OLLAMA to "Ollama (your own server)",
+            CUSTOM to "Custom server (your own model)",
         )
     }
 }
