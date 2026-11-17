@@ -174,6 +174,25 @@ class SettingsActivity : Activity() {
             scope.launch { toast(engine.testGemini()) }
         }
 
+        section("AVATAR", "Pick who Spark is. Each one has its own look and personality. You can also switch from the main screen.")
+        val styles = android.widget.RadioGroup(this).apply { orientation = android.widget.RadioGroup.VERTICAL }
+        for (style in com.spark.companion.ui.avatar.AvatarStyle.values()) {
+            styles.addView(android.widget.RadioButton(this).apply {
+                id = View.generateViewId()
+                text = "${style.displayName}: ${style.tagline}"
+                setTextColor(Ui.TEXT)
+                textSize = 15.5f
+                isChecked = settings.avatar == style.name
+                setOnCheckedChangeListener { _, checked ->
+                    if (checked) {
+                        settings.avatar = style.name
+                        engine.refreshSettings()
+                    }
+                }
+            })
+        }
+        content.addView(styles)
+
         section("VOICE")
         toggle("Speak replies aloud", "Turn off for silent, text-only answers", settings.speakReplies) {
             settings.speakReplies = it
@@ -186,11 +205,13 @@ class SettingsActivity : Activity() {
             settings.language = it
         }
         toggle(
-            "Floating orb", "Show Spark's orb over other apps (needs phone control)", settings.floatingOrb
-        ) { settings.floatingOrb = it }
+            "Floating avatar",
+            "Keep the sleeping avatar on screen over other apps. It always appears when it wakes up (needs phone control or “Show over other apps”).",
+            settings.floatingAvatar
+        ) { settings.floatingAvatar = it }
         toggle(
-            "Hands-free wake word (experimental)",
-            "Listen all the time for the wake word. Uses more battery, and some phones beep each time listening restarts.",
+            "Wake word",
+            "Always listen for the wake word, so saying it wakes the avatar from any screen. Uses some battery. On Android 12+ the phone's offline recogniser is used, which usually stays silent; older phones may beep each time listening restarts.",
             settings.wakeWordEnabled
         ) { on ->
             settings.wakeWordEnabled = on
@@ -266,6 +287,16 @@ class SettingsActivity : Activity() {
             "Phone control", "Read the screen and tap, type and scroll in other apps (Accessibility)",
             SparkAccessibilityService.instance != null
         ) { open(SystemSettings.ACTION_ACCESSIBILITY_SETTINGS) }
+        permissionRow(
+            "Show over other apps", "Let the avatar pop up over any app when it wakes",
+            SystemSettings.canDrawOverlays(this) || SparkAccessibilityService.instance != null
+        ) {
+            try {
+                startActivity(Intent(SystemSettings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+            } catch (e: Exception) {
+                open(SystemSettings.ACTION_SETTINGS)
+            }
+        }
         permissionRow("Contacts", "Call and message people by name", has(Manifest.permission.READ_CONTACTS)) {
             requestPermissions(arrayOf(Manifest.permission.READ_CONTACTS), 1)
         }

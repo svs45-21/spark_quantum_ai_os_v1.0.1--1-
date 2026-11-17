@@ -2,7 +2,11 @@
 
 Spark turns your Android phone into a talking AI companion that can also operate the phone for you. It's part of SPARK QUANTUM AI OS. It runs on its own using Google Gemini, and it can hand heavy jobs to desktop SPARK when your computer is reachable.
 
-Tap the orb (or long-press home or power once Spark is your default assistant) and talk:
+Spark appears as an **animated avatar**. Pick Nova (a sleek robot), Mira (a warm, caring girl) or Kit (a playful fox). Each has its own look and personality. While idle the avatar **sleeps**: eyes closed, breathing slowly, with floating "Zzz". **Say "Spark"** from anywhere and it wakes up with a sleepy blink, a stretch and a burst of sparkles, greets you, and starts talking with you. Its mouth moves with its voice, its face shows the mood of each reply (happy, playful, concerned, surprised…), and subtitles show what it's saying. After about 15 quiet seconds it dozes off again.
+
+![Nova, Mira and Kit asleep, waking, listening, thinking, talking, sad, surprised and working](docs/avatars.png)
+
+You can say the wake word and your request in one breath ("Spark, set an alarm for 6"), tap the avatar, or long-press home or power once Spark is your default assistant. Then talk:
 
 - *"Remind me to call the bank in 30 minutes."*
 - *"Text Amma that I'll be late. Say sorry."* Spark reads the message back and asks before it sends.
@@ -17,6 +21,8 @@ Tap the orb (or long-press home or power once Spark is your default assistant) a
 
 | Area | Abilities |
 |---|---|
+| Avatar | Three animated characters with sleep, wake-up, listening, thinking, working and speaking animations, lip-sync and mood expressions. A floating avatar appears over other apps when it wakes. |
+| Wake word | Always-on "Spark" detection (also hears "Sparky", "Sparks", "स्पार्क"). On Android 12+ it uses the phone's offline recogniser, which usually doesn't beep. |
 | Conversation | Natural back-and-forth voice conversation that keeps listening after each reply, plus a typed chat. It matches your language (English, Hindi, Hinglish and others) and remembers facts about you across sessions. |
 | Phone control | Reads the screen and taps, types, scrolls and presses back, home or recents in any app, through the Accessibility service. A floating orb stays available over other apps. |
 | Direct actions | Open apps, place calls, send SMS, open a WhatsApp chat with a message ready, draft email, set alarms, timers and reminders, add calendar events, navigate, play or control media, set volume, turn the flashlight on or off, open settings pages, read battery and network status, read notifications. |
@@ -39,6 +45,7 @@ The APK is built by GitHub Actions. Nothing needs to be installed on your comput
    - **Phone control**: Accessibility → *Spark phone control*. If Android says the setting is *restricted*, open **App info for Spark → ⋮ → Allow restricted settings**, then try again. Phones show this for apps installed outside the Play Store.
    - **Contacts / Phone calls / SMS**: needed to call and text people by name.
    - **Notifications** and **Notification access**: needed for reminders and for "who messaged me?".
+   - **Show over other apps**: lets the avatar pop up over whatever you're doing when you say "Spark". Phone control does this too.
    - **Default assistant**: choose *Spark* under *Digital assistant app*.
 5. On Xiaomi, Oppo, Vivo, Realme, Samsung and similar phones, set Spark's **battery** setting to *Unrestricted* or *No restrictions*. Otherwise the system may kill phone control in the background.
 
@@ -93,6 +100,7 @@ The agent loop sends the conversation and tool list to Gemini, runs the function
 ## Known limits
 
 - Speech recognition uses the phone's own engine (usually Google's), which may need internet.
-- The wake word is experimental. It restarts the recogniser continuously, which costs battery, and some phones beep each time.
+- The wake word uses Android's speech recogniser in a loop, not a dedicated low-power hotword chip, so it costs some battery. On phones without offline recognition (most phones before Android 12), the recogniser may beep each time it restarts. In that case turn the wake word off from the chip under the avatar and tap the avatar instead.
+- Lip-sync follows the real voice volume where the phone allows it; otherwise it follows word timing.
 - Games, videos and some banking apps hide their content from accessibility services, so Spark can't read or tap inside them.
 - Android 14+ may refuse to keep the microphone alive when a conversation is started from the background. If Spark stops listening behind another app, tap the orb.

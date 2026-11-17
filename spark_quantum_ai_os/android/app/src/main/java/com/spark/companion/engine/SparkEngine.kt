@@ -7,7 +7,9 @@ import com.spark.companion.brain.ActionPolicy
 import com.spark.companion.brain.Agent
 import com.spark.companion.brain.ConfirmRequest
 import com.spark.companion.brain.GeminiClient
+import com.spark.companion.brain.Greetings
 import com.spark.companion.brain.LlmException
+import com.spark.companion.brain.Mood
 import com.spark.companion.brain.Persona
 import com.spark.companion.brain.SpeechText
 import com.spark.companion.brain.ToolCatalog
@@ -17,6 +19,9 @@ import com.spark.companion.memory.ChatMessage
 import com.spark.companion.memory.MemoryStore
 import com.spark.companion.phone.PhoneTools
 import com.spark.companion.phone.SparkAccessibilityService
+import com.spark.companion.ui.OverlayController
+import com.spark.companion.ui.avatar.AvatarRig
+import com.spark.companion.ui.avatar.AvatarStyle
 import com.spark.companion.voice.Speaker
 import com.spark.companion.voice.SpeechInput
 import kotlinx.coroutines.CompletableDeferred
@@ -32,10 +37,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-
-enum class Phase { IDLE, LISTENING, THINKING, ACTING, SPEAKING }
 
 data class EngineState(val phase: Phase = Phase.IDLE, val detail: String = "")
 
@@ -70,9 +74,23 @@ class SparkEngine(private val context: Context) {
     private val _partial = MutableStateFlow("")
     val partial: StateFlow<String> = _partial
 
-    /** Microphone level, 0..1, for the orb animation. */
+    /** Mic level while listening, voice level while speaking (0..1), for the avatar. */
     private val _level = MutableStateFlow(0f)
     val level: StateFlow<Float> = _level
+
+    /** Whether the avatar is awake. It wakes for a conversation and dozes off after. */
+    private val _awake = MutableStateFlow(false)
+    val awake: StateFlow<Boolean> = _awake
+
+    /** The feeling of the latest reply, shown on the avatar's face. */
+    private val _mood = MutableStateFlow(Mood.CALM)
+    val mood: StateFlow<Mood> = _mood
+
+    /** What Spark is saying right now (subtitles). */
+    private val _caption = MutableStateFlow("")
+    val caption: StateFlow<String> = _caption
+
+    val avatarStyle = MutableStateFlow(AvatarStyle.from(settings.avatar))
 
     private val _pending = MutableStateFlow<PendingConfirm?>(null)
     val pendingConfirm: StateFlow<PendingConfirm?> = _pending
@@ -80,8 +98,12 @@ class SparkEngine(private val context: Context) {
     /** True while Spark's own screen is in front. */
     val uiVisible = MutableStateFlow(false)
 
-    /** Mirrors the floating-orb setting so the overlay can react to changes. */
-    val orbEnabled = MutableStateFlow(settings.floatingOrb)
+    /** Mirrors the floating-avatar setting so the overlay can react to changes. */
+    val floatingEnabled = MutableStateFlow(settings.floatingAvatar)
+
+    private var sleepJob: Job? = null
+    /** Falls back to the online recogniser if on-device recognition keeps failing. */
+    private var wakeOnDevice = true
 
     val busy: Boolean get() = job?.isActive == true
 
@@ -103,22 +125,47 @@ class SparkEngine(private val context: Context) {
         startSession { runTurn(clean, voice = false) }
     }
 
-    /** Tap on the orb: start talking, or stop whatever is going on. */
+    /** Tap on the avatar: wake it and talk, or stop whatever is going on. */
     fun toggleVoice() {
-        if (busy) stop() else startVoice()
+        if (busy) stop() else startVoice(greet = !_awake.value)
     }
 
-    fun startVoice(firstUtterance: String? = null) {
+    /**
+     * Starts a voice conversation. [firstUtterance] is what was already said
+     * after the wake word; [greet] makes the avatar say hello first.
+     */
+    fun startVoice(firstUtterance: String? = null, greet: Boolean = false) {
         if (!micGranted()) {
+            wakeUp()
             postAssistant("I need microphone permission to hear you. You can grant it in Spark settings.")
+            scheduleSleep()
             return
         }
-        startSession { voiceSession(firstUtterance) }
+        startSession { voiceSession(firstUtterance, greet) }
     }
 
     fun stop() {
         job?.cancel()
         speaker.stop()
+    }
+
+    /** Opens the avatar's eyes (the wake-up animation plays on the transition). */
+    fun wakeUp() {
+        sleepJob?.cancel()
+        _awake.value = true
+    }
+
+    /** Lets the avatar doze off after a quiet spell. */
+    private fun scheduleSleep(afterMs: Long = SLEEP_AFTER_MS) {
+        sleepJob?.cancel()
+        sleepJob = scope.launch {
+            delay(afterMs)
+            if (!busy) {
+                _awake.value = false
+                _mood.value = Mood.CALM
+                _caption.value = ""
+            }
+        }
     }
 
     fun answerConfirm(approved: Boolean) {
@@ -141,7 +188,8 @@ class SparkEngine(private val context: Context) {
 
     /** Call after settings change so background features follow them. */
     fun refreshSettings() {
-        orbEnabled.value = settings.floatingOrb
+        floatingEnabled.value = settings.floatingAvatar
+        avatarStyle.value = AvatarStyle.from(settings.avatar)
         if (settings.wakeWordEnabled && micGranted()) {
             CompanionService.start(context)
             if (wakeJob?.isActive != true && !busy) wakeJob = scope.launch { wakeLoop() }
@@ -168,6 +216,7 @@ class SparkEngine(private val context: Context) {
 
     private fun startSession(block: suspend () -> Unit) {
         wakeJob?.cancel()
+        wakeUp()
         val previous = job
         previous?.cancel()
         speaker.stop()
@@ -180,6 +229,7 @@ class SparkEngine(private val context: Context) {
                 _partial.value = ""
                 _level.value = 0f
                 _state.value = EngineState()
+                scheduleSleep()
                 if (!settings.wakeWordEnabled) CompanionService.stop(context)
             }
         }.also { session ->
@@ -190,9 +240,15 @@ class SparkEngine(private val context: Context) {
         }
     }
 
-    private suspend fun voiceSession(first: String?) {
+    private suspend fun voiceSession(first: String?, greet: Boolean) {
         var text = first
         agent.endRequested = false
+        if (greet && text == null) {
+            // Give the wake-up animation a moment, then say hello.
+            delay(AvatarRig.WAKE_MS - 300)
+            _mood.value = Mood.HAPPY
+            say(Greetings.pick(settings.userName, Calendar.getInstance().get(Calendar.HOUR_OF_DAY)))
+        }
         while (true) {
             if (text == null) {
                 text = listen()
@@ -204,10 +260,7 @@ class SparkEngine(private val context: Context) {
             }
             val reply = runTurn(text, voice = true)
             text = null
-            if (reply != null && settings.speakReplies) {
-                _state.value = EngineState(Phase.SPEAKING)
-                speaker.speak(reply, settings.language)
-            }
+            if (reply != null && settings.speakReplies) say(reply)
             if (agent.endRequested || !settings.continuous) return
         }
     }
@@ -244,15 +297,16 @@ class SparkEngine(private val context: Context) {
                 confirm = { request -> confirm(request, voice) },
                 listener = listener,
             )
-            post(false, reply)
-            reply
+            val (mood, clean) = Mood.split(reply)
+            _mood.value = mood ?: Mood.CALM
+            _caption.value = clean
+            post(false, clean)
+            clean
         } catch (e: LlmException) {
             val message = e.message ?: "Something went wrong talking to the model."
+            _mood.value = Mood.CONCERNED
             post(false, message)
-            if (voice && settings.speakReplies) {
-                _state.value = EngineState(Phase.SPEAKING)
-                speaker.speak(message, settings.language)
-            }
+            if (voice && settings.speakReplies) say(message)
             // A failed turn ends a voice session rather than looping on errors.
             agent.endRequested = true
             null
@@ -269,6 +323,7 @@ class SparkEngine(private val context: Context) {
                 screenControl = SparkAccessibilityService.instance != null,
                 desktopLink = settings.desktopLinked,
                 voice = voice,
+                avatar = avatarStyle.value.personality,
             )
         )
     }
@@ -281,12 +336,13 @@ class SparkEngine(private val context: Context) {
      * within 45 seconds counts as no.
      */
     private suspend fun confirm(request: ConfirmRequest, voice: Boolean): Boolean {
-        val canShow = uiVisible.value || SparkAccessibilityService.instance != null
+        val canShow = uiVisible.value || OverlayController.showing
         if (!canShow && !voice) return false
         val answer = CompletableDeferred<Boolean>()
         _pending.value = PendingConfirm(request.summary, answer)
         val voiceJob = if (voice) scope.launch {
-            speaker.speak(request.summary + ". Shall I go ahead?", settings.language)
+            _mood.value = Mood.THOUGHTFUL
+            say(request.summary + ". Shall I go ahead?")
             repeat(2) {
                 val heard = listen("Say yes or no")
                 _state.value = EngineState(Phase.ACTING, "Waiting for your OK")
@@ -305,28 +361,67 @@ class SparkEngine(private val context: Context) {
         }
     }
 
-    // ── Hands-free wake word (experimental) ──────────────────────────────
+    // ── Hands-free wake word ─────────────────────────────────────────────
 
+    /**
+     * Listens over and over for the wake word. As soon as it shows up in the
+     * partial transcript the avatar starts waking, so it reacts while you are
+     * still talking; the full sentence then becomes the first request.
+     */
     private suspend fun wakeLoop() {
         while (scope.isActive && settings.wakeWordEnabled) {
             if (busy) {
                 delay(1000)
                 continue
             }
-            val heard = speech.listen(settings.language)
+            val onDevice = wakeOnDevice && speech.onDeviceAvailable
+            var stirred = false
+            val heard = speech.listen(
+                settings.language,
+                onPartial = { partial ->
+                    if (!stirred && SpeechText.afterWakeWord(partial, settings.wakeWord) != null) {
+                        stirred = true
+                        if (!_awake.value) wakeUp()
+                    }
+                },
+                onDevice = onDevice,
+            )
             if (heard == null) {
+                val error = speech.lastError
+                if (stirred) scheduleSleep(4_000)
+                if (onDevice && error !in QUIET_ERRORS) wakeOnDevice = false
                 // Silence is normal; real errors get a longer pause so we don't spin.
-                delay(if (speech.lastError == android.speech.SpeechRecognizer.ERROR_NO_MATCH ||
-                    speech.lastError == android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT) 250 else 2500)
+                delay(if (error in QUIET_ERRORS) 150 else 2500)
                 continue
             }
-            val command = SpeechText.afterWakeWord(heard, settings.wakeWord) ?: continue
-            startVoice(command.ifBlank { null })
+            val command = SpeechText.afterWakeWord(heard, settings.wakeWord)
+            if (command == null) {
+                if (stirred) scheduleSleep(4_000)
+                continue
+            }
+            val wasAwake = _awake.value && !stirred
+            startVoice(command.ifBlank { null }, greet = command.isBlank() && !wasAwake)
             return
         }
     }
 
+    /** Speaks [text] with subtitles and lip-sync. */
+    private suspend fun say(text: String) {
+        _caption.value = Mood.split(text).second
+        _state.value = EngineState(Phase.SPEAKING)
+        speaker.speak(_caption.value, settings.language) { _level.value = it }
+        _level.value = 0f
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────
+
+    companion object {
+        const val SLEEP_AFTER_MS = 15_000L
+        private val QUIET_ERRORS = setOf(
+            android.speech.SpeechRecognizer.ERROR_NO_MATCH,
+            android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT,
+        )
+    }
 
     private fun micGranted(): Boolean =
         context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED

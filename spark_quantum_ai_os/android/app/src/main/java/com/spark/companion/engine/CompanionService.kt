@@ -11,6 +11,7 @@ import android.os.IBinder
 import com.spark.companion.R
 import com.spark.companion.SparkApp
 import com.spark.companion.ui.MainActivity
+import com.spark.companion.ui.OverlayController
 
 /**
  * Foreground service that keeps Spark alive, and the microphone usable, while
@@ -20,11 +21,18 @@ class CompanionService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    override fun onDestroy() {
+        OverlayController.detachApp()
+        super.onDestroy()
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
             SparkApp.engine.stop()
             return START_NOT_STICKY
         }
+        // Without phone control, draw the floating avatar from here if allowed.
+        OverlayController.attachApp(this)
         val open = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
@@ -36,7 +44,7 @@ class CompanionService : Service() {
         val notification = Notification.Builder(this, SparkApp.CHANNEL_COMPANION)
             .setSmallIcon(R.drawable.ic_spark)
             .setContentTitle("Spark is with you")
-            .setContentText("Tap to open. Use Stop to end what Spark is doing.")
+            .setContentText(if (SparkApp.engine.settings.wakeWordEnabled) "Say “${SparkApp.engine.settings.wakeWord.replaceFirstChar { it.uppercase() }}” to wake me up." else "Tap to open. Use Stop to end what Spark is doing.")
             .setContentIntent(open)
             .setOngoing(true)
             .addAction(Notification.Action.Builder(null, "Stop", stop).build())

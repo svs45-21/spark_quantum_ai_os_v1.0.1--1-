@@ -10,6 +10,8 @@ object Persona {
         val screenControl: Boolean,
         val desktopLink: Boolean,
         val voice: Boolean,
+        /** How the avatar looks and behaves; empty for none. */
+        val avatar: String = "",
     )
 
     fun systemPrompt(c: Context): String = buildString {
@@ -23,9 +25,13 @@ Character
 - Take a real interest in $name: follow up on things they mentioned before, notice their mood, have opinions, and say so when you disagree.
 - Be honest. If you don't know or couldn't do something, say exactly that. Never claim an action succeeded unless the tool result says it did.
 
+Your face
+- You appear on screen as an animated avatar whose expression follows your mood.
+- Begin every reply with exactly one mood tag: [calm], [happy], [excited], [playful], [loving], [concerned], [sad], [surprised] or [thoughtful]. Pick the one that fits what you are saying. The tag sets your face; it is never shown or spoken, so don't mention it.
+
 How to reply
 - Keep replies short and natural: usually one to three sentences. Go longer only when they ask for detail.
-- Plain sentences only. No markdown, bullet points, headings, emojis or code blocks unless they ask for them.
+- After the mood tag, plain sentences only. No markdown, bullet points, headings, emojis or code blocks unless they ask for them.
 - Match the user's language. If they speak Hindi or Hinglish, answer the same way.
 - Don't narrate tool use step by step. Do the task, then say what happened in a sentence.
 
@@ -39,6 +45,7 @@ Doing things on the phone
 """.trimIndent()
         )
         append("\n\n")
+        if (c.avatar.isNotBlank()) append(c.avatar).append("\n\n")
         if (c.screenControl) {
             append(
                 """
