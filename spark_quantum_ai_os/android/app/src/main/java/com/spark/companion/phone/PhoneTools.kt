@@ -86,6 +86,7 @@ class PhoneTools(
             "set_flashlight" -> "Switching the flashlight"
             "open_settings" -> "Opening settings"
             "device_status" -> "Checking the phone"
+            "open_camera" -> "Opening the camera"
             "read_notifications" -> "Reading notifications"
             "remember" -> "Remembering that"
             "forget" -> "Forgetting that"
@@ -169,6 +170,7 @@ class PhoneTools(
                 "set_flashlight" -> setFlashlight(a.optBoolean("on", true))
                 "open_settings" -> openSettings(a.optString("page", "main"))
                 "device_status" -> deviceStatus()
+                "open_camera" -> openCamera()
                 "read_notifications" -> readNotifications(a.optInt("limit", 10))
                 "remember" -> {
                     val saved = withContext(Dispatchers.IO) { memory.remember(a.optString("fact")) }
@@ -598,6 +600,12 @@ class PhoneTools(
         }
         val result = launch(Intent(action))
         return if (result.optBoolean("ok")) result else launch(Intent(SystemSettings.ACTION_SETTINGS))
+    }
+
+    private fun openCamera(): JSONObject {
+        return launch(
+            Intent(context, com.spark.companion.ui.VisionActivity::class.java)
+        ).put("note", "The camera is open. The user can point it and ask what they want to know.")
     }
 
     private fun deviceStatus(): JSONObject {

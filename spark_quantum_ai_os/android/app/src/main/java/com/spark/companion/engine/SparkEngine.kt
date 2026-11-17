@@ -245,6 +245,47 @@ suspend fun testGemini(): String = try {
 
     suspend fun testDesktopLink(): Boolean = link.ping()
 
+    @Volatile private var lastProactiveAt = 0L
+
+    /**
+     * A new notification arrived. If proactive mode is on and Spark is free,
+     * it gives a short spoken heads-up. Plain template, so it costs no tokens.
+     */
+    fun onIncomingNotification(app: String, title: String, text: String) {
+        if (!settings.proactiveEnabled || !settings.speakReplies || busy) return
+        if (!micOrSpeakerReady()) return
+        val now = System.currentTimeMillis()
+        if (now - lastProactiveAt < 8000) return
+        lastProactiveAt = now
+        val who = title.ifBlank { app }
+        val body = text.take(160)
+        val line = if (body.isBlank()) "New notification from $app." else "$who on $app says: $body"
+        startSession {
+            _mood.value = Mood.CALM
+            say(line)
+        }
+    }
+
+    private fun micOrSpeakerReady(): Boolean = true
+
+    /** Runs a saved routine's instruction and reads out the result. */
+    fun runRoutine(prompt: String) {
+        if (prompt.isBlank()) return
+        startSession {
+            talkLanguage = settings.primaryLanguage
+            val reply = runTurn(prompt, voice = true)
+            if (reply != null && settings.speakReplies) say(reply)
+        }
+    }
+
+    /** Speaks [text] aloud in the current language and avatar voice (used by the camera screen). */
+    fun speakExternal(text: String, mood: Mood = Mood.CALM) {
+        startSession {
+            _mood.value = mood
+            say(text)
+        }
+    }
+
     /** Says a short sample with the current avatar's voice, for the settings screen. */
     fun testVoice() {
         startSession {

@@ -60,6 +60,9 @@ dependencies {
     // Google Play Services needed. Adds a few MB to the APK.
     implementation("com.google.mlkit:face-detection:16.1.7")
 
+    // For FileProvider (sharing the camera photo) and quick-access widget bits.
+    implementation("androidx.core:core-ktx:1.13.1")
+
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")

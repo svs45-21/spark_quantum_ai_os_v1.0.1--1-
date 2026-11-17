@@ -47,6 +47,12 @@ class SparkNotificationListener : NotificationListenerService() {
             items.addLast(item)
             while (items.size > 50) items.removeFirst()
         }
+        // Give Spark a chance to speak up (it checks its own settings).
+        try {
+            com.spark.companion.SparkApp.instance.engine.onIncomingNotification(item.app, item.title, item.text)
+        } catch (e: Exception) {
+            // engine not ready
+        }
     }
 
     companion object {

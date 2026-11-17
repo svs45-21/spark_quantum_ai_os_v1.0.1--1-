@@ -15,6 +15,24 @@ Open **Avatar Studio** (the **＋ Create** chip under the avatar, or Settings �
 
 The eye and mouth dots are then placed for you automatically; nudge any that are off, watch the live preview talk, blink and smile, and give it a name, a personality and a voice. Spark becomes that character, and its personality shapes how it talks. Use photos of yourself or of people who are happy to be an avatar.
 
+### Camera vision
+
+Tap **👁 Look** (or say *"Spark, what am I looking at?"*). Spark opens the camera; snap a photo and it tells you what it is, reads or translates the text, or describes the scene, and reads the answer aloud. Uses Gemini vision (free tier).
+
+### Proactive heads-up
+
+Turn on **Settings → Proactive heads-up** and Spark speaks a short summary when a new message or notification arrives (only when it's free and not already talking). Ask *"give me a briefing"* any time and it reads your recent notifications and the time.
+
+### Routines (automations)
+
+Tap **⚡ Routines**. Create a task Spark runs on its own — at a set time on chosen days, when you plug in the charger, or when a text arrives. The task is just an instruction in your words, e.g. *"Read my new notifications and tell me the weather,"* and Spark carries it out and reads the result. (On Android 12+, allow "alarms & reminders" so timed routines fire exactly on time.)
+
+### Always one tap away
+
+- **Quick-settings tile:** add Spark to your quick settings to start talking from anywhere.
+- **Home-screen widget:** long-press the home screen → Widgets → Spark.
+- **Lock screen:** when summoned by the tile, widget or assistant gesture, Spark can appear over the lock screen.
+
 ### Brains and image makers (all have free options)
 
 Spark's thinking can run on any of three providers, chosen in **Settings → Brain**:
@@ -47,6 +65,9 @@ You can say the wake word and your request in one breath ("Spark, set an alarm f
 
 | Area | Abilities |
 |---|---|
+| Camera vision | Point the camera and ask — identify things, read/translate text, describe a scene. |
+| Proactive & routines | Spoken heads-up on new messages; automations that run at a time, on charger, or on incoming SMS. |
+| Quick access | Quick-settings tile, home-screen widget, and lock-screen talk. |
 | Avatar Studio | Your own avatars from a photo (as-is or AI-restyled) or from a description, with realistic face animation. |
 | Providers | Brain runs on Gemini, Groq or OpenRouter (all free tiers); avatar images on Pollinations (free, no key) or Gemini. Switchable in Settings. |
 | Languages | 27 languages; replies, voice and listening follow the language you speak. Optional Gemini natural voices with emotion. |
@@ -115,7 +136,8 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 app/src/main/java/com/spark/companion/
 ├── brain/      Providers (Gemini, Groq, OpenRouter), image makers (Gemini, Pollinations), agent loop, persona, safety policy
-├── engine/     SparkEngine: conversation, voice loop, confirmations; foreground service
+├── engine/     SparkEngine: conversation, voice loop, proactive, routines runner; foreground service, tile, widget
+├── automation/ Routines: model, store, scheduler, receivers
 ├── phone/      PhoneTools (every action), Accessibility service + overlay, screen reader, notifications
 ├── voice/      Speech recognition and text-to-speech
 ├── memory/     On-device SQLite: remembered facts and chat history

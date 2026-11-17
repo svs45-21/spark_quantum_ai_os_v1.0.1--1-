@@ -148,6 +148,11 @@ class Settings(context: Context) {
         get() = prefs.getBoolean("wake_word_enabled", true)
         set(value) = prefs.edit().putBoolean("wake_word_enabled", value).apply()
 
+    /** Spark speaks a short heads-up when a new message/notification arrives. */
+    var proactiveEnabled: Boolean
+        get() = prefs.getBoolean("proactive", false)
+        set(value) = prefs.edit().putBoolean("proactive", value).apply()
+
     val desktopLinked: Boolean get() = serverUrl.isNotBlank()
 
     fun registerListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) =

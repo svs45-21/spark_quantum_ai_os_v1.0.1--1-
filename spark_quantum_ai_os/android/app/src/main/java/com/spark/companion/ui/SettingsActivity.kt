@@ -277,6 +277,11 @@ class SettingsActivity : Activity() {
             settings.floatingAvatar
         ) { settings.floatingAvatar = it }
         toggle(
+            "Proactive heads-up",
+            "When a new message or notification arrives, Spark speaks a short summary (only when it's free and not already talking).",
+            settings.proactiveEnabled
+        ) { settings.proactiveEnabled = it }
+        toggle(
             "Wake word",
             "Always listen for the wake word, so saying it wakes the avatar from any screen. Uses some battery. On Android 12+ the phone's offline recogniser is used, which usually stays silent; older phones may beep each time listening restarts.",
             settings.wakeWordEnabled
@@ -324,6 +329,13 @@ class SettingsActivity : Activity() {
         section("ADVANCED", "Gemini model names, in case Google renames them.")
         field("Image model (avatar creation)", settings.imageModel, com.spark.companion.brain.GeminiMedia.DEFAULT_IMAGE_MODEL) { settings.imageModel = it }
         field("Voice model (natural voices)", settings.ttsModel, com.spark.companion.brain.GeminiMedia.DEFAULT_TTS_MODEL) { settings.ttsModel = it }
+
+        section("MORE", "Spark's camera, and automations that run on their own.")
+        action("Open Spark Vision (camera)") { startActivity(Intent(this, VisionActivity::class.java)) }
+        action("Open Routines") { startActivity(Intent(this, RoutinesActivity::class.java)) }
+        action("Add the quick tile / widget") {
+            toast("Add Spark's tile from the quick-settings edit screen, and its widget by long-pressing the home screen.")
+        }
 
         section("MEMORY", "Everything Spark remembers stays in a private database on this phone.")
         action("Forget everything Spark knows about me", Ui.SURFACE_HI, Ui.DANGER) {

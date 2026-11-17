@@ -53,6 +53,14 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // When summoned by voice (tile, widget, assistant), show over the lock screen.
+        if (intent?.getBooleanExtra(EXTRA_LISTEN, false) == true ||
+            intent?.action == Intent.ACTION_ASSIST || intent?.action == Intent.ACTION_VOICE_COMMAND) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
+                setShowWhenLocked(true)
+                setTurnScreenOn(true)
+            }
+        }
         setContentView(buildUi())
         observe()
         handleIntent(intent)
@@ -324,6 +332,19 @@ class MainActivity : Activity() {
             }
         }
         root.addView(wakeChip, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = Ui.dp(this@MainActivity, 8) })
+
+        // Quick actions.
+        val quick = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        quick.addView(Ui.button(this, "👁 Look", Ui.SURFACE_HI, Ui.TEXT) {
+            startActivity(Intent(this, VisionActivity::class.java))
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            .apply { marginEnd = Ui.dp(this@MainActivity, 8) })
+        quick.addView(Ui.button(this, "⚡ Routines", Ui.SURFACE_HI, Ui.TEXT) {
+            startActivity(Intent(this, RoutinesActivity::class.java))
+        })
+        root.addView(quick, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
         ).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = Ui.dp(this@MainActivity, 8) })
 

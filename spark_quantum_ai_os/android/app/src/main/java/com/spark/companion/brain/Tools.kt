@@ -223,6 +223,10 @@ object ToolCatalog {
                 "Get battery level, charging state, network, volume and which app is on screen."
             ),
             tool(
+                "open_camera",
+                "Open Spark's camera so the user can show you something and you can see it — for 'what is this', reading or translating text, or describing what's in front of them."
+            ),
+            tool(
                 "read_notifications",
                 "Read the user's recent notifications (who messaged, what arrived).",
                 listOf("limit" to int("How many, newest first (default 10)"))
