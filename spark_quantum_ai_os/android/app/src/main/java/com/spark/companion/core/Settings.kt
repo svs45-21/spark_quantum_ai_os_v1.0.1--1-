@@ -60,12 +60,19 @@ class Settings(context: Context) {
         get() = prefs.getBoolean("continuous", true)
         set(value) = prefs.edit().putBoolean("continuous", value).apply()
 
-    var floatingOrb: Boolean
+    /** Show the sleeping avatar over other apps, not only while it is talking. */
+    var floatingAvatar: Boolean
         get() = prefs.getBoolean("floating_orb", true)
         set(value) = prefs.edit().putBoolean("floating_orb", value).apply()
 
+    /** Which character Spark appears as (an AvatarStyle name). */
+    var avatar: String
+        get() = prefs.getString("avatar", "NOVA") ?: "NOVA"
+        set(value) = prefs.edit().putString("avatar", value).apply()
+
+    /** Always listen for the wake word. On by default: it's how you wake the avatar. */
     var wakeWordEnabled: Boolean
-        get() = prefs.getBoolean("wake_word_enabled", false)
+        get() = prefs.getBoolean("wake_word_enabled", true)
         set(value) = prefs.edit().putBoolean("wake_word_enabled", value).apply()
 
     val desktopLinked: Boolean get() = serverUrl.isNotBlank()

@@ -3,6 +3,7 @@ package com.spark.companion.voice
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -28,6 +29,19 @@ class SpeechInput(private val context: Context) {
 
     val available: Boolean
         get() = SpeechRecognizer.isRecognitionAvailable(context)
+
+    /**
+     * Whether an on-device recogniser exists (Android 12+). It works offline
+     * and on most phones does not play a beep each time it starts, which
+     * makes it much better for always-on wake-word listening.
+     */
+    val onDeviceAvailable: Boolean
+        get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            try {
+                SpeechRecognizer.isOnDeviceRecognitionAvailable(context)
+            } catch (e: Exception) {
+                false
+            }
 
     /**
      * Picks the recognition service to use. Spark declares a placeholder
@@ -57,18 +71,24 @@ class SpeechInput(private val context: Context) {
         language: String,
         onPartial: (String) -> Unit = {},
         onLevel: (Float) -> Unit = {},
-    ): String? = withTimeoutOrNull(25_000) { listenOnce(language, onPartial, onLevel) }
+        onDevice: Boolean = false,
+    ): String? = withTimeoutOrNull(25_000) { listenOnce(language, onPartial, onLevel, onDevice) }
 
     private suspend fun listenOnce(
         language: String,
         onPartial: (String) -> Unit,
         onLevel: (Float) -> Unit,
+        onDevice: Boolean,
     ): String? = suspendCancellableCoroutine { cont ->
         lastError = 0
         val recognizer = try {
             val component = recognizerComponent()
-            if (component != null) SpeechRecognizer.createSpeechRecognizer(context, component)
-            else SpeechRecognizer.createSpeechRecognizer(context)
+            when {
+                onDevice && onDeviceAvailable && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
+                    SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
+                component != null -> SpeechRecognizer.createSpeechRecognizer(context, component)
+                else -> SpeechRecognizer.createSpeechRecognizer(context)
+            }
         } catch (e: Exception) {
             lastError = SpeechRecognizer.ERROR_CLIENT
             cont.resume(null)

@@ -52,8 +52,16 @@ object SpeechText {
     fun afterWakeWord(heard: String, wakeWord: String): String? {
         val word = wakeWord.trim().lowercase()
         if (word.isEmpty()) return null
-        val match = Regex("\\b(hey |ok |okay |hi )?${Regex.escape(word)}\\b[,.!?]?", RegexOption.IGNORE_CASE)
-            .find(heard) ?: return null
-        return heard.substring(match.range.last + 1).trim()
+        // Recognisers often hear "sparks" / "sparky", or write the word in Devanagari.
+        val forms = (listOf(Regex.escape(word) + "(?:s|y|ie|ey)?") +
+            (EXTRA_FORMS[word] ?: emptyList()).map { Regex.escape(it) }).joinToString("|")
+        val pattern = Regex(
+            "(?<![\\p{L}\\p{M}])(?:(?:hey|ok|okay|hi|hello|oye|arre)[ ,]+)?(?:$forms)(?![\\p{L}\\p{M}])[,.!?।]?",
+            RegexOption.IGNORE_CASE
+        )
+        val match = pattern.find(heard) ?: return null
+        return heard.substring(match.range.last + 1).trim().trimStart(',', '.', '!', '?', '।').trim()
     }
+
+    private val EXTRA_FORMS = mapOf("spark" to listOf("स्पार्क", "स्पार्की"))
 }
