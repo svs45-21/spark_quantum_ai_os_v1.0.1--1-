@@ -10,10 +10,10 @@ Spark appears as an **animated avatar**. Pick Nova (a sleek robot), Mira (a warm
 
 Open **Avatar Studio** (the **＋ Create** chip under the avatar, or Settings → Avatar) and either:
 
-- **Use a photo.** Pick any clear, front-facing face: a selfie, a portrait, a painting or a drawing. Spark finds the face, crops a portrait and animates it. It blinks with its own eyelids, opens its mouth as it talks, smiles, raises its brows, looks around and tilts its head. You can use the photo as it is, which keeps it on the phone. Or restyle it with AI as **Realistic**, **3D animated**, **Anime**, **Comic** or **Painted**, which sends the photo to Google Gemini and keeps your likeness.
+- **Use a photo.** Pick any clear, front-facing face: a selfie, a portrait, a painting or a drawing. Spark detects the face with Google's on-device ML Kit, reads the real eye, nose and mouth positions, straightens a tilted or slightly angled photo so the eyes are level, crops a portrait and animates it. It blinks with its own eyelids, opens its mouth as it talks, smiles, raises its brows, looks around and tilts its head. You can use the photo as it is, which keeps it on the phone. Or restyle it with AI as **Realistic**, **3D animated**, **Anime**, **Comic** or **Painted**, which sends the photo to Google Gemini and keeps your likeness.
 - **Describe one.** Write who it should be, for example "a cheerful woman in her twenties with curly black hair and a yellow kurta". Gemini paints the portrait in the look you pick.
 
-Then drag four dots onto the eyes and mouth corners, watch the live preview talk, blink and smile, and give it a name, a personality and a voice. Spark becomes that character, and its personality shapes how it talks. Use photos of yourself or of people who are happy to be an avatar.
+The eye and mouth dots are then placed for you automatically; nudge any that are off, watch the live preview talk, blink and smile, and give it a name, a personality and a voice. Spark becomes that character, and its personality shapes how it talks. Use photos of yourself or of people who are happy to be an avatar.
 
 ### Languages and voices
 
@@ -120,7 +120,8 @@ The agent loop sends the conversation and tool list to Gemini, runs the function
 - Speech recognition uses the phone's own engine (usually Google's), which may need internet.
 - The wake word uses Android's speech recogniser in a loop, not a dedicated low-power hotword chip, so it costs some battery. On phones without offline recognition (most phones before Android 12), the recogniser may beep each time it restarts. In that case turn the wake word off from the chip under the avatar and tap the avatar instead.
 - Lip-sync follows the real voice volume where the phone allows it; otherwise it follows word timing.
-- Photo avatars animate a single picture by warping it. They look best with a front-facing face, eyes open and mouth closed. Side profiles, sunglasses or hands over the face won't animate well.
+- Photo avatars animate a single picture by warping it. The face is found and straightened automatically (ML Kit, on-device). They look best with a front-facing face, eyes open and mouth closed; a face turned far to the side can't be straightened in 2D.
+- AI restyle and AI creation use Gemini image generation, which has a small free-tier quota. If it says the usage limit was hit, wait a minute, or use the photo as it is (which needs no quota and stays on the phone).
 - Gemini model names change over time. If avatar creation or natural voices say the model isn't found, update the names under Settings → Advanced.
 - Games, videos and some banking apps hide their content from accessibility services, so Spark can't read or tap inside them.
 - Android 14+ may refuse to keep the microphone alive when a conversation is started from the background. If Spark stops listening behind another app, tap the orb.

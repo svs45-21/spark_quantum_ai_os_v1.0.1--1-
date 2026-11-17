@@ -50,7 +50,7 @@ class GeminiClientTest {
 
     @Test fun friendlyErrors() {
         assertTrue(GeminiClient.errorMessage(403, "").contains("API key"))
-        assertTrue(GeminiClient.errorMessage(429, "").contains("rate limit"))
+        assertTrue(GeminiClient.errorMessage(429, "").contains("usage limit"))
         assertTrue(GeminiClient.endpoint("models/gemini-2.5-pro").endsWith("/gemini-2.5-pro:generateContent"))
     }
 }

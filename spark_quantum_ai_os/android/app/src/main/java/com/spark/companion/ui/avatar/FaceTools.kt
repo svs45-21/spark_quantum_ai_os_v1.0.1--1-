@@ -12,10 +12,18 @@ import android.graphics.PointF
 import android.graphics.Rect
 import android.graphics.RectF
 import android.media.ExifInterface
-import android.media.FaceDetector
 import android.net.Uri
 import android.os.Build
+import com.google.android.gms.tasks.Task
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.face.Face
+import com.google.mlkit.vision.face.FaceDetection
+import com.google.mlkit.vision.face.FaceDetectorOptions
+import com.google.mlkit.vision.face.FaceLandmark
+import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.ByteArrayOutputStream
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.math.max
 import kotlin.math.min
 
@@ -73,69 +81,123 @@ object FaceTools {
         return Bitmap.createScaledBitmap(b, (b.width * scale).toInt(), (b.height * scale).toInt(), true)
     }
 
-    /** Eye midpoint and eye distance in [b]'s pixels, from Android's built-in detector. */
-    class Face(val eyesX: Float, val eyesY: Float, val eyeDistance: Float)
+    /** The face features ML Kit found, in the source photo's pixels. */
+    class Face(
+        val leftEyeX: Float, val leftEyeY: Float,
+        val rightEyeX: Float, val rightEyeY: Float,
+        val mouthLeftX: Float, val mouthLeftY: Float,
+        val mouthRightX: Float, val mouthRightY: Float,
+    ) {
+        val eyeDistance: Float get() = kotlin.math.hypot(rightEyeX - leftEyeX, rightEyeY - leftEyeY).coerceAtLeast(1f)
+    }
 
-    fun detect(b: Bitmap): Face? = try {
-        // The detector needs RGB_565 and an even width; work on a smaller copy.
-        val scale = min(1f, 720f / max(b.width, b.height))
-        var w = (b.width * scale).toInt()
-        if (w % 2 == 1) w -= 1
-        val h = (b.height * scale).toInt()
-        val small = Bitmap.createBitmap(w.coerceAtLeast(2), h.coerceAtLeast(2), Bitmap.Config.RGB_565)
-        Canvas(small).drawBitmap(b, null, Rect(0, 0, small.width, small.height), Paint(Paint.FILTER_BITMAP_FLAG))
-        val faces = arrayOfNulls<FaceDetector.Face>(3)
-        val found = FaceDetector(small.width, small.height, faces.size).findFaces(small, faces)
-        val best = faces.take(found).filterNotNull().maxByOrNull { it.eyesDistance() }
-        best?.let {
-            val mid = PointF()
-            it.getMidPoint(mid)
-            val sx = b.width.toFloat() / small.width
-            val sy = b.height.toFloat() / small.height
-            Face(mid.x * sx, mid.y * sy, it.eyesDistance() * sx)
+    /**
+     * Finds the most prominent face with ML Kit's on-device detector and
+     * returns its eye and mouth-corner positions. Eyes are ordered by image x
+     * (left first). Missing mouth corners are estimated from the eyes. Returns
+     * null if no face is found or the detector isn't available.
+     */
+    suspend fun detect(b: Bitmap): Face? {
+        val options = FaceDetectorOptions.Builder()
+            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
+            .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
+            .setMinFaceSize(0.12f)
+            .build()
+        val detector = FaceDetection.getClient(options)
+        val faces = try {
+            detector.process(InputImage.fromBitmap(b, 0)).await()
+        } catch (e: Throwable) {
+            return null
+        } finally {
+            try {
+                detector.close()
+            } catch (e: Exception) {
+                // already closed
+            }
         }
-    } catch (e: Exception) {
-        null
+        val face = faces.maxByOrNull { it.boundingBox.width().toLong() * it.boundingBox.height() } ?: return null
+
+        val eyes = listOfNotNull(
+            face.getLandmark(FaceLandmark.LEFT_EYE)?.position,
+            face.getLandmark(FaceLandmark.RIGHT_EYE)?.position,
+        ).sortedBy { it.x }
+        val box = face.boundingBox
+        val (lEye, rEye) = if (eyes.size == 2) {
+            eyes[0] to eyes[1]
+        } else {
+            // No eye landmarks: fall back to typical positions in the face box.
+            android.graphics.PointF(box.left + box.width() * 0.33f, box.top + box.height() * 0.42f) to
+                android.graphics.PointF(box.left + box.width() * 0.67f, box.top + box.height() * 0.42f)
+        }
+        val eyeDist = kotlin.math.hypot((rEye.x - lEye.x), (rEye.y - lEye.y)).coerceAtLeast(1f)
+
+        val mouthPts = listOfNotNull(
+            face.getLandmark(FaceLandmark.MOUTH_LEFT)?.position,
+            face.getLandmark(FaceLandmark.MOUTH_RIGHT)?.position,
+        ).sortedBy { it.x }
+        val (lMouth, rMouth) = if (mouthPts.size == 2) {
+            mouthPts[0] to mouthPts[1]
+        } else {
+            // Estimate the mouth below the eyes, along the face's own tilt.
+            val cx = (lEye.x + rEye.x) / 2f
+            val cy = (lEye.y + rEye.y) / 2f
+            val ux = (rEye.x - lEye.x) / eyeDist
+            val uy = (rEye.y - lEye.y) / eyeDist
+            val downX = -uy
+            val downY = ux
+            val mcx = cx + downX * eyeDist * 1.05f
+            val mcy = cy + downY * eyeDist * 1.05f
+            android.graphics.PointF(mcx - ux * eyeDist * 0.4f, mcy - uy * eyeDist * 0.4f) to
+                android.graphics.PointF(mcx + ux * eyeDist * 0.4f, mcy + uy * eyeDist * 0.4f)
+        }
+        return Face(lEye.x, lEye.y, rEye.x, rEye.y, lMouth.x, lMouth.y, rMouth.x, rMouth.y)
+    }
+
+    private suspend fun <T> Task<T>.await(): T = suspendCancellableCoroutine { cont ->
+        addOnCompleteListener { task ->
+            val error = task.exception
+            if (error != null) cont.resumeWithException(error)
+            else cont.resume(task.result)
+        }
     }
 
     /** A square portrait centred on the face, plus where its features are. */
     class Portrait(val bitmap: Bitmap, val landmarks: FaceLandmarks, val faceFound: Boolean)
 
     /**
-     * Crops [b] to a square around the face (head and shoulders) and scales it
-     * to [PORTRAIT_SIZE]. With no face found, takes the centre square.
+     * Crops [b] to an upright, centred portrait around the face and scales it
+     * to [PORTRAIT_SIZE]. Tilted and slightly angled faces are rotated so the
+     * eyes are level, which is what the animation needs. With no face found,
+     * takes the centre square and leaves the dots to be placed by hand.
      */
-    fun portrait(b: Bitmap, tight: Boolean = true): Portrait {
+    suspend fun portrait(b: Bitmap, tight: Boolean = true): Portrait {
+        @Suppress("UNUSED_PARAMETER") val ignored = tight
         val face = detect(b)
-        val side: Float
-        val cx: Float
-        val cy: Float
-        if (face != null && tight) {
-            side = min(min(b.width, b.height).toFloat(), face.eyeDistance * 3.6f)
-            cx = face.eyesX
-            cy = face.eyesY + face.eyeDistance * 0.45f
-        } else {
-            side = min(b.width, b.height).toFloat()
-            cx = b.width / 2f
-            cy = b.height / 2f
-        }
-        val left = (cx - side / 2).coerceIn(0f, b.width - side)
-        val top = (cy - side / 2).coerceIn(0f, b.height - side)
         val out = Bitmap.createBitmap(PORTRAIT_SIZE, PORTRAIT_SIZE, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(out)
         canvas.drawColor(Color.BLACK)
-        canvas.drawBitmap(
-            b, Rect(left.toInt(), top.toInt(), (left + side).toInt(), (top + side).toInt()),
-            RectF(0f, 0f, PORTRAIT_SIZE.toFloat(), PORTRAIT_SIZE.toFloat()), Paint(Paint.FILTER_BITMAP_FLAG)
-        )
-        val landmarks = if (face != null) {
-            FaceLandmarks.estimate((face.eyesX - left) / side, (face.eyesY - top) / side, face.eyeDistance / side)
-        } else {
-            // Try once more on the cropped picture before guessing.
-            detect(out)?.let { FaceLandmarks.estimate(it.eyesX / PORTRAIT_SIZE, it.eyesY / PORTRAIT_SIZE, it.eyeDistance / PORTRAIT_SIZE) }
-                ?: FaceLandmarks.CENTERED
+        if (face == null) {
+            val side = min(b.width, b.height).toFloat()
+            val left = (b.width - side) / 2
+            val top = (b.height - side) / 2
+            canvas.drawBitmap(
+                b, Rect(left.toInt(), top.toInt(), (left + side).toInt(), (top + side).toInt()),
+                RectF(0f, 0f, PORTRAIT_SIZE.toFloat(), PORTRAIT_SIZE.toFloat()), Paint(Paint.FILTER_BITMAP_FLAG)
+            )
+            return Portrait(out, FaceLandmarks.CENTERED, false)
         }
-        return Portrait(out, landmarks, face != null)
+        val framing = Framing.forEyes(face.leftEyeX, face.leftEyeY, face.rightEyeX, face.rightEyeY)
+        val matrix = Matrix().apply { setValues(framing.matrixValues()) }
+        canvas.drawBitmap(b, matrix, Paint(Paint.FILTER_BITMAP_FLAG))
+        fun f(x: Float, y: Float): FloatArray = framing.mapFrac(x, y).also {
+            it[0] = it[0].coerceIn(0.02f, 0.98f); it[1] = it[1].coerceIn(0.02f, 0.98f)
+        }
+        val le = f(face.leftEyeX, face.leftEyeY)
+        val re = f(face.rightEyeX, face.rightEyeY)
+        val ml = f(face.mouthLeftX, face.mouthLeftY)
+        val mr = f(face.mouthRightX, face.mouthRightY)
+        val landmarks = FaceLandmarks(le[0], le[1], re[0], re[1], ml[0], ml[1], mr[0], mr[1])
+        return Portrait(out, landmarks, true)
     }
 
     /** JPEG bytes to send to Gemini (at most 1024 px). */

@@ -300,11 +300,11 @@ class AvatarStudioActivity : Activity() {
             adjustViewBounds = true
         }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             .apply { topMargin = Ui.dp(this@AvatarStudioActivity, 10) })
-        note(if (faceFound) "Face found. You'll fine-tune the eyes and mouth on the next screen."
-        else "I couldn't find a face automatically, so you'll place the eye and mouth dots yourself on the next screen.")
+        note(if (faceFound) "Face found, straightened and centred. On the next screen the eye and mouth dots are already placed — just check them."
+        else "I couldn't find a face in this picture, so on the next screen you'll place the eye and mouth dots yourself. A clear, front-facing face works best.")
         button("Use this photo as it is", primary = true) { show(Screen.EDIT) }
         heading("OR RESTYLE IT WITH AI")
-        note("Gemini redraws the picture in the style you pick, keeping the likeness. Takes 10–30 seconds.")
+        note("Gemini redraws the picture in the style you pick, keeping the likeness. Takes 10–30 seconds. On the free plan this has a small quota — if it says the limit was hit, wait a minute, or just use the photo as it is above.")
         for (style in GeminiMedia.ImageStyle.values()) {
             button(style.label) { generate(GeminiMedia.convertPrompt(style), photo) }
         }
@@ -353,7 +353,7 @@ class AvatarStudioActivity : Activity() {
     private fun buildEdit() {
         val bitmap = portrait ?: return show(Screen.HOME)
         title(if (editingId != null) "Edit ${name}" else "Bring it to life")
-        note("Drag the blue dots onto the centre of each eye and the pink dots onto the corners of the mouth.")
+        note("The dots are placed for you. Drag any that are off: blue on the centre of each eye, pink on the corners of the mouth. The preview updates as you move them.")
         val preview = AvatarView(this).apply { awake = true }
         val editor = LandmarkEditorView(this).apply {
             this.bitmap = bitmap
