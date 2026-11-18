@@ -64,4 +64,25 @@ object SpeechText {
     }
 
     private val EXTRA_FORMS = mapOf("spark" to listOf("स्पार्क", "स्पार्की"))
+
+    /** How long one continuous wake-word session asks the recogniser to stay open. */
+    const val WAKE_SESSION_MS = 10 * 60 * 1000
+
+    /**
+     * A recogniser that ignores the continuous-session request ends at the
+     * first pause, within seconds. Ending that fast means the phone doesn't
+     * support it, so fall back to the restart loop.
+     */
+    fun continuousLooksUnsupported(elapsedMs: Long): Boolean = elapsedMs < 8_000
+
+    /**
+     * Pause before restarting the fallback loop after [silentRounds] rounds in
+     * a row with nothing heard. Short at first so "Spark" isn't missed, then
+     * longer so the mic doesn't blink on and off every couple of seconds.
+     */
+    fun wakeRestartDelayMs(silentRounds: Int): Long = when {
+        silentRounds < 3 -> 150L
+        silentRounds < 10 -> 600L
+        else -> 1_200L
+    }
 }

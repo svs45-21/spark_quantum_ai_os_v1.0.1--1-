@@ -292,7 +292,7 @@ class SettingsActivity : Activity() {
         ) { settings.proactiveEnabled = it }
         toggle(
             "Wake word",
-            "Always listen for the wake word, so saying it wakes the avatar from any screen. Uses some battery. On Android 12+ the phone's offline recogniser is used, which usually stays silent; older phones may beep each time listening restarts.",
+            "Always listen for the wake word, so saying it wakes the avatar from any screen. Android shows its green mic dot the whole time this is on; that's its privacy indicator and can't be hidden. On Android 13+ the mic stays on steadily; on older phones it restarts between phrases and may blink or beep. Uses some battery.",
             settings.wakeWordEnabled
         ) { on ->
             settings.wakeWordEnabled = on

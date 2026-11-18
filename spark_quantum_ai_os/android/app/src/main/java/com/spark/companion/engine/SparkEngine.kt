@@ -132,6 +132,9 @@ class SparkEngine(private val context: Context) {
     /** Falls back to the online recogniser if on-device recognition keeps failing. */
     private var wakeOnDevice = true
 
+    /** Use one long recognition session for the wake word; off if the phone can't. */
+    private var continuousWake = true
+
     val busy: Boolean get() = job?.isActive == true
 
     init {
@@ -467,6 +470,7 @@ suspend fun testGemini(): String = try {
      * still talking; the full sentence then becomes the first request.
      */
     private suspend fun wakeLoop() {
+        var silentRounds = 0
         while (scope.isActive && settings.wakeWordEnabled) {
             if (busy) {
                 delay(1000)
@@ -474,14 +478,39 @@ suspend fun testGemini(): String = try {
             }
             val onDevice = wakeOnDevice && speech.onDeviceAvailable
             var stirred = false
+            val stir = {
+                if (!stirred) {
+                    stirred = true
+                    if (!_awake.value) wakeUp()
+                }
+            }
+
+            // Android 13+: one long session keeps the mic on steadily instead of
+            // switching it off and on after every pause.
+            if (continuousWake && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                when (val r = speech.listenForWakeWord(settings.primaryLanguage, settings.wakeWord, onDevice, SpeechText.WAKE_SESSION_MS, stir)) {
+                    is SpeechInput.WakeResult.Heard -> {
+                        val wasAwake = _awake.value && !stirred
+                        startVoice(r.command.ifBlank { null }, greet = r.command.isBlank() && !wasAwake)
+                        return
+                    }
+                    is SpeechInput.WakeResult.Ended -> {
+                        if (stirred) scheduleSleep(4_000)
+                        if (r.unsupported) continuousWake = false
+                        if (onDevice && r.error != 0 && r.error !in QUIET_ERRORS) wakeOnDevice = false
+                        delay(if (r.error == 0 || r.error in QUIET_ERRORS) 300 else 2500)
+                        continue
+                    }
+                }
+            }
+
+            // Fallback for recognisers without long sessions: listen, restart,
+            // and back off while nobody is talking so the mic blinks less.
             val heard = speech.listen(
                 settings.primaryLanguage,
                 alsoAllowed = settings.languages,
                 onPartial = { partial ->
-                    if (!stirred && SpeechText.afterWakeWord(partial, settings.wakeWord) != null) {
-                        stirred = true
-                        if (!_awake.value) wakeUp()
-                    }
+                    if (SpeechText.afterWakeWord(partial, settings.wakeWord) != null) stir()
                 },
                 onDevice = onDevice,
             )
@@ -489,10 +518,15 @@ suspend fun testGemini(): String = try {
                 val error = speech.lastError
                 if (stirred) scheduleSleep(4_000)
                 if (onDevice && error !in QUIET_ERRORS) wakeOnDevice = false
-                // Silence is normal; real errors get a longer pause so we don't spin.
-                delay(if (error in QUIET_ERRORS) 150 else 2500)
+                if (error in QUIET_ERRORS) {
+                    silentRounds++
+                    delay(SpeechText.wakeRestartDelayMs(silentRounds))
+                } else {
+                    delay(2500)
+                }
                 continue
             }
+            silentRounds = 0
             val command = SpeechText.afterWakeWord(heard, settings.wakeWord)
             if (command == null) {
                 if (stirred) scheduleSleep(4_000)
