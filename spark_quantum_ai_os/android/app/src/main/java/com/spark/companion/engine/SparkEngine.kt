@@ -99,6 +99,10 @@ class SparkEngine(private val context: Context) {
     private val _level = MutableStateFlow(0f)
     val level: StateFlow<Float> = _level
 
+    /** Mouth shape of what Spark is saying right now (for lip-sync), or null. */
+    private val _mouth = MutableStateFlow<com.spark.companion.brain.MouthShape?>(null)
+    val mouth: StateFlow<com.spark.companion.brain.MouthShape?> = _mouth
+
     /** Whether the avatar is awake. It wakes for a conversation and dozes off after. */
     private val _awake = MutableStateFlow(false)
     val awake: StateFlow<Boolean> = _awake
@@ -649,11 +653,12 @@ suspend fun testGemini(): String = try {
         _state.value = EngineState(Phase.SPEAKING)
         val voice = avatar.value.voice
         val onLevel: (Float) -> Unit = { _level.value = it }
+        val onMouth: (com.spark.companion.brain.MouthShape?) -> Unit = { _mouth.value = it }
         try {
             if (settings.voiceEngine == "gemini" && settings.apiKey.isNotBlank()) {
                 try {
                     val pcm = naturalVoice.synthesize(SpeechText.forSpeech(clean), voice.geminiVoice, _mood.value)
-                    naturalVoice.play(pcm, onLevel)
+                    naturalVoice.play(pcm, onLevel, onMouth)
                     return
                 } catch (e: LlmException) {
                     if (!naturalVoiceFailedNoted) {
@@ -662,9 +667,10 @@ suspend fun testGemini(): String = try {
                     }
                 }
             }
-            speaker.speak(clean, talkLanguage, onLevel, voice.pitch, voice.rate)
+            speaker.speak(clean, talkLanguage, onLevel, voice.pitch, voice.rate, onMouth)
         } finally {
             _level.value = 0f
+            _mouth.value = null
         }
     }
 

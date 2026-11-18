@@ -50,6 +50,7 @@ abstract class AvatarPainter(val accent: Int) {
             AvatarStyle.NOVA -> NovaPainter(style.accent)
             AvatarStyle.MIRA -> MiraPainter(style.accent)
             AvatarStyle.KIT -> KitPainter(style.accent)
+            AvatarStyle.ARIA, AvatarStyle.LEO -> BodyPainter(BodySpec.defaultFor(style.gender!!), style.accent)
         }
     }
 }

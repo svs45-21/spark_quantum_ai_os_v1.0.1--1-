@@ -41,7 +41,7 @@ object GeminiMedia {
     fun describePrompt(description: String, style: ImageStyle): String =
         "Create ${style.look} of this character: ${description.trim()}. $FRAMING"
 
-    fun imageRequest(prompt: String, image: ByteArray?, mimeType: String = "image/jpeg"): JSONObject {
+    fun imageRequest(prompt: String, image: ByteArray?, mimeType: String = "image/jpeg", aspectRatio: String? = null): JSONObject {
         val parts = JSONArray()
         if (image != null) {
             parts.put(
@@ -54,7 +54,12 @@ object GeminiMedia {
         parts.put(JSONObject().put("text", prompt))
         return JSONObject()
             .put("contents", JSONArray().put(JSONObject().put("role", "user").put("parts", parts)))
-            .put("generationConfig", JSONObject().put("responseModalities", JSONArray().put("TEXT").put("IMAGE")))
+            .put(
+                "generationConfig",
+                JSONObject().put("responseModalities", JSONArray().put("TEXT").put("IMAGE")).apply {
+                    if (aspectRatio != null) put("imageConfig", JSONObject().put("aspectRatio", aspectRatio))
+                }
+            )
     }
 
     /** Extracts the generated image bytes, or explains why there are none. */
@@ -107,6 +112,19 @@ object GeminiMedia {
         Mood.SAD -> "Say softly and sadly: "
         Mood.SURPRISED -> "Say with surprise: "
         Mood.THOUGHTFUL -> "Say thoughtfully: "
+        Mood.GRATEFUL -> "Say gratefully and warmly: "
+        Mood.PROUD -> "Say proudly: "
+        Mood.CONFIDENT -> "Say confidently: "
+        Mood.RELIEVED -> "Say with relief: "
+        Mood.ANGRY -> "Say firmly, with controlled annoyance: "
+        Mood.SCARED -> "Say nervously, a little frightened: "
+        Mood.DISGUSTED -> "Say with distaste: "
+        Mood.CONFUSED -> "Say in a puzzled way: "
+        Mood.SHY -> "Say shyly and softly: "
+        Mood.EMBARRASSED -> "Say a little embarrassed: "
+        Mood.NERVOUS -> "Say nervously: "
+        Mood.BORED -> "Say in a bored, flat tone: "
+        Mood.SLEEPY -> "Say sleepily, with a yawn in the voice: "
         Mood.CALM, null -> ""
     }
 

@@ -51,7 +51,7 @@ import kotlin.math.sin
  */
 class AvatarStudioActivity : Activity() {
 
-    private enum class Screen { HOME, PHOTO, DESCRIBE, EDIT }
+    private enum class Screen { HOME, PHOTO, DESCRIBE, EDIT, OUTFIT }
 
     private val engine get() = SparkApp.engine
     private val repo get() = engine.avatars
@@ -73,6 +73,19 @@ class AvatarStudioActivity : Activity() {
     private var pitch = 1f
     private var description = ""
     private var previewJob: Job? = null
+
+    // Full-body avatars.
+    private var body: com.spark.companion.ui.avatar.BodySpec? = null
+    private var pendingGender: com.spark.companion.ui.avatar.Gender? = null
+    /** The saved avatar whose look is being changed (null while creating one). */
+    private var outfitTarget: AvatarProfile? = null
+    private var outfitFromEdit = false
+    private var thumbJob: Job? = null
+
+    // A realistic body made in this session, not saved yet.
+    private var pendingReal: com.spark.companion.ui.avatar.RealBody.Result? = null
+    private var pendingRealSwap = false
+    private var pendingRealOutfit: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -99,6 +112,7 @@ class AvatarStudioActivity : Activity() {
         when (screen) {
             Screen.HOME -> return false
             Screen.EDIT -> show(if (editingId != null) Screen.HOME else if (photo != null) Screen.PHOTO else Screen.DESCRIBE)
+            Screen.OUTFIT -> show(if (outfitFromEdit) Screen.EDIT else Screen.HOME)
             else -> show(Screen.HOME)
         }
         return true
@@ -136,12 +150,14 @@ class AvatarStudioActivity : Activity() {
         screen = next
         syncBackCallback()
         previewJob?.cancel()
+        thumbJob?.cancel()
         content.removeAllViews()
         when (next) {
             Screen.HOME -> buildHome()
             Screen.PHOTO -> buildPhoto()
             Screen.DESCRIBE -> buildDescribe()
             Screen.EDIT -> buildEdit()
+            Screen.OUTFIT -> buildOutfit()
         }
         (content.parent as? ScrollView)?.scrollTo(0, 0)
     }
@@ -200,10 +216,29 @@ class AvatarStudioActivity : Activity() {
         note("Pick who Spark appears as, or make your own from a photo or a description.")
         heading("YOUR AVATARS")
         val current = engine.avatar.value.id
-        for (profile in repo.all()) content.addView(avatarRow(profile, profile.id == current))
+        val all = repo.all()
+        for (profile in all) content.addView(avatarRow(profile, profile.id == current))
+
+        val inUse = all.firstOrNull { it.id == current }
+        if (inUse?.body != null) {
+            heading("OUTFIT & LOOK")
+            note("Dress ${inUse.name} in any of 50 styles, and change hair, skin and eyes.")
+            button("Change ${inUse.name}'s outfit & look", primary = true) {
+                body = inUse.body
+                outfitTarget = inUse
+                outfitFromEdit = false
+                pendingReal = null
+                show(Screen.OUTFIT)
+            }
+        }
 
         heading("CREATE A NEW ONE")
-        button("Use a photo", primary = true) { pickPhoto() }
+        button("Full-body avatar with my face", primary = true) { askGender() }
+        note("Upload a photo: your face goes onto a full female or male body, with matching skin and hair. Then pick from 50 outfits.")
+        button("Use a photo (face only)") {
+            pendingGender = null
+            pickPhoto()
+        }
         note("Any clear, front-facing face works: a selfie, a portrait, a drawing or a painting. Use photos of yourself or of people who are happy to be an avatar.")
         button("Describe one and let AI create it") {
             photo = null
@@ -279,6 +314,8 @@ class AvatarStudioActivity : Activity() {
         landmarks = profile.landmarks ?: FaceLandmarks.CENTERED
         faceFound = true
         editingId = profile.id
+        body = profile.body
+        pendingReal = null
         name = profile.name
         personality = profile.personality
         accent = profile.accent
@@ -317,11 +354,25 @@ class AvatarStudioActivity : Activity() {
         }
     }
 
+    private fun askGender() {
+        AlertDialog.Builder(this)
+            .setTitle("Which body?")
+            .setItems(arrayOf("Female", "Male")) { _, which ->
+                pendingGender = if (which == 0) com.spark.companion.ui.avatar.Gender.FEMALE else com.spark.companion.ui.avatar.Gender.MALE
+                pickPhoto()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
     private fun startNew(framed: FaceTools.Portrait) {
         portrait = framed.bitmap
         landmarks = framed.landmarks
         faceFound = framed.faceFound
         editingId = null
+        body = pendingGender?.let { com.spark.companion.ui.avatar.BodySpec.defaultFor(it).copy(skinFromFace = true, realistic = true) }
+        pendingGender = null
+        pendingReal = null
         if (name.isBlank()) name = "My avatar"
     }
 
@@ -365,7 +416,7 @@ class AvatarStudioActivity : Activity() {
     /** Asks Gemini for a portrait, then moves to the editor. */
     /** Picks the image generator: Pollinations (free) unless restyling a photo. */
     private fun imageGen(needsPhoto: Boolean): ImageGen {
-        val gemini = GeminiImageGen({ engine.settings.apiKey }, { engine.settings.imageModel }) { engine.settings.imageModel = it }
+        val gemini = GeminiImageGen({ engine.settings.apiKey }, { engine.settings.imageModel }, onModelSwitch = { engine.settings.imageModel = it })
         if (needsPhoto) return gemini
         return if (engine.settings.imageProvider == "pollinations") PollinationsImageGen() else gemini
     }
@@ -395,12 +446,27 @@ class AvatarStudioActivity : Activity() {
         title(if (editingId != null) "Edit ${name}" else "Bring it to life")
         note("The dots are placed for you. Drag any that are off: blue on the centre of each eye, pink on the corners of the mouth. The preview updates as you move them.")
         val preview = AvatarView(this).apply { awake = true }
+        fun refreshPreview() {
+            val b = body
+            val real = pendingReal
+            if (b != null && b.realistic && real != null && pendingRealOutfit == b.outfitId) {
+                preview.fullBody = true
+                if (pendingRealSwap) preview.previewReal(real.bitmap, real.face, accent, bitmap, landmarks)
+                else preview.previewReal(real.bitmap, real.face, accent)
+            } else if (b != null) {
+                preview.fullBody = true
+                preview.previewBody(b, accent, bitmap, landmarks)
+            } else {
+                preview.fullBody = false
+                preview.preview(bitmap, landmarks, accent)
+            }
+        }
         val editor = LandmarkEditorView(this).apply {
             this.bitmap = bitmap
             this.landmarks = this@AvatarStudioActivity.landmarks
             onChange = { lm ->
                 this@AvatarStudioActivity.landmarks = lm
-                preview.preview(bitmap, lm, accent)
+                refreshPreview()
             }
         }
         content.addView(editor, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
@@ -411,8 +477,8 @@ class AvatarStudioActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        preview.preview(bitmap, landmarks, accent)
-        previewRow.addView(preview, LinearLayout.LayoutParams(Ui.dp(this, 170), Ui.dp(this, 170)))
+        refreshPreview()
+        previewRow.addView(preview, LinearLayout.LayoutParams(Ui.dp(this, 170), Ui.dp(this, if (body != null) 300 else 170)))
         val controls = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         fun control(label: String, action: () -> Unit) = controls.addView(
             Ui.button(this, label, Ui.SURFACE_HI, Ui.TEXT, action),
@@ -431,9 +497,45 @@ class AvatarStudioActivity : Activity() {
             preview.phase = Phase.IDLE
             preview.mood = if (preview.mood == com.spark.companion.brain.Mood.HAPPY) com.spark.companion.brain.Mood.CALM else com.spark.companion.brain.Mood.HAPPY
         }
+        control("Next feeling") {
+            previewJob?.cancel()
+            preview.awake = true
+            preview.phase = Phase.IDLE
+            val all = com.spark.companion.brain.Mood.values()
+            preview.mood = all[(preview.mood.ordinal + 1) % all.size]
+            toast(preview.mood.tag.replaceFirstChar { it.uppercase() })
+        }
         previewRow.addView(controls, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             .apply { marginStart = Ui.dp(this@AvatarStudioActivity, 12) })
         content.addView(previewRow)
+
+        heading("BODY")
+        note("Show just the face, or put it on a full body that can move, gesture and wear 50 outfits.")
+        val bodies = RadioGroup(this).apply { orientation = RadioGroup.VERTICAL }
+        val choices = listOf(null, com.spark.companion.ui.avatar.Gender.FEMALE, com.spark.companion.ui.avatar.Gender.MALE)
+        for (g in choices) {
+            bodies.addView(RadioButton(this).apply {
+                id = View.generateViewId()
+                text = when (g) { null -> "Face only (portrait)"; com.spark.companion.ui.avatar.Gender.FEMALE -> "Female full body"; else -> "Male full body" }
+                setTextColor(Ui.TEXT)
+                textSize = 15f
+                isChecked = body?.gender == g
+                setOnCheckedChangeListener { _, checked ->
+                    if (!checked || body?.gender == g) return@setOnCheckedChangeListener
+                    body = g?.let { com.spark.companion.ui.avatar.BodySpec.defaultFor(it).copy(skinFromFace = true, realistic = true) }
+                    pendingReal = null
+                    show(Screen.EDIT)
+                }
+            })
+        }
+        content.addView(bodies)
+        if (body != null) {
+            button("Choose outfit, hair & skin") {
+                outfitTarget = null
+                outfitFromEdit = true
+                show(Screen.OUTFIT)
+            }
+        }
 
         heading("NAME")
         field("What should this avatar be called?", name) { name = it }
@@ -502,6 +604,230 @@ class AvatarStudioActivity : Activity() {
         if (editingId == null && photo != null) button("Back to styles") { show(Screen.PHOTO) }
     }
 
+    // ── Outfit & look (full-body avatars) ────────────────────────────────
+
+    private fun buildOutfit() {
+        val start = body ?: return show(Screen.HOME)
+        val target = outfitTarget
+        // The face being worn: the one in the editor, or the saved avatar's portrait.
+        val faceBitmap = if (outfitFromEdit) portrait else target?.portrait?.let { AvatarRepository.loadPortrait(it) }
+        val faceMarks = if (outfitFromEdit) landmarks else target?.landmarks
+        val tint = if (outfitFromEdit) accent else target?.accent ?: accent
+        title("Outfit & look")
+        note("Tap an outfit to try it on. Tap the avatar to see its feelings.")
+
+        val preview = AvatarView(this).apply {
+            awake = true
+            fullBody = true
+        }
+        // The realistic picture for the chosen outfit: made just now, or saved earlier.
+        fun realFor(spec: com.spark.companion.ui.avatar.BodySpec): Triple<Bitmap, FaceLandmarks, Boolean>? {
+            val made = pendingReal
+            if (made != null && pendingRealOutfit == spec.outfitId) return Triple(made.bitmap, made.face, pendingRealSwap)
+            val saved = target?.takeIf { !outfitFromEdit && it.realOutfit == spec.outfitId && it.realFace != null } ?: return null
+            val bmp = saved.realBody?.let { AvatarRepository.loadPortrait(it) } ?: return null
+            return Triple(bmp, saved.realFace!!, saved.realSwap)
+        }
+        val currentReal = if (start.realistic) realFor(start) else null
+        fun refresh() {
+            val spec = body ?: return
+            val real = if (spec.realistic) currentReal else null
+            if (real != null) {
+                if (real.third && faceBitmap != null && faceMarks != null) preview.previewReal(real.first, real.second, tint, faceBitmap, faceMarks)
+                else preview.previewReal(real.first, real.second, tint)
+            } else {
+                preview.previewBody(spec, tint, faceBitmap, faceMarks)
+            }
+        }
+        refresh()
+        preview.setOnClickListener {
+            val all = com.spark.companion.brain.Mood.values()
+            preview.mood = all[(preview.mood.ordinal + 1) % all.size]
+            toast(preview.mood.tag.replaceFirstChar { it.uppercase() })
+        }
+        content.addView(preview, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 340)))
+        if (start.realistic) {
+            if (currentReal == null) {
+                note("This is a drawn preview. Create the realistic photo of this outfit: a real-looking person, head to toe" +
+                    (if (faceBitmap != null) ", with your face" else "") + ". Free, takes about 20–40 seconds.")
+                button("Create realistic photo", primary = true) { makeReal(faceBitmap) }
+            } else {
+                note("Realistic photo ready. Not quite right? Each try gives a new picture.")
+                button("Try another photo") { makeReal(faceBitmap) }
+            }
+        }
+
+        // Hair, colours and beard.
+        fun chips(label: String, items: List<Pair<String, Boolean>>, onPick: (Int) -> Unit) {
+            heading(label)
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            items.forEachIndexed { i, (text, on) ->
+                row.addView(Ui.text(this, text, 14f, if (on) Ui.BG else Ui.TEXT, bold = on).apply {
+                    background = Ui.rounded(if (on) Ui.ACCENT else Ui.SURFACE_HI, Ui.dp(this@AvatarStudioActivity, 16).toFloat())
+                    setPadding(Ui.dp(this@AvatarStudioActivity, 14), Ui.dp(this@AvatarStudioActivity, 8), Ui.dp(this@AvatarStudioActivity, 14), Ui.dp(this@AvatarStudioActivity, 8))
+                    setOnClickListener { onPick(i) }
+                }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = Ui.dp(this@AvatarStudioActivity, 8) })
+            }
+            content.addView(android.widget.HorizontalScrollView(this).apply {
+                isHorizontalScrollBarEnabled = false
+                addView(row)
+            })
+        }
+        fun swatches(label: String, colours: List<Int>, selected: Int, onPick: (Int) -> Unit) {
+            heading(label)
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            for (c in colours) {
+                row.addView(View(this).apply {
+                    background = Ui.rounded(c, Ui.dp(this@AvatarStudioActivity, 16).toFloat(),
+                        if (c == selected) Ui.TEXT else null, Ui.dp(this@AvatarStudioActivity, 3))
+                    setOnClickListener { onPick(c) }
+                }, LinearLayout.LayoutParams(Ui.dp(this, 32), Ui.dp(this, 32)).apply { marginEnd = Ui.dp(this@AvatarStudioActivity, 10) })
+            }
+            content.addView(android.widget.HorizontalScrollView(this).apply {
+                isHorizontalScrollBarEnabled = false
+                addView(row)
+            })
+        }
+        val b = start
+        fun update(next: com.spark.companion.ui.avatar.BodySpec, rebuild: Boolean) {
+            body = next
+            if (rebuild) {
+                val y = (content.parent as? ScrollView)?.scrollY ?: 0
+                show(Screen.OUTFIT)
+                (content.parent as? ScrollView)?.post { (content.parent as? ScrollView)?.scrollTo(0, y) }
+            } else {
+                refresh()
+            }
+        }
+        chips("STYLE", listOf("Realistic (photo)" to b.realistic, "Illustrated (full gestures)" to !b.realistic)) {
+            update(b.copy(realistic = it == 0), true)
+        }
+        if (b.realistic) note("Realistic: a real-looking person whose face talks, blinks and shows feelings, and whose body breathes and sways. Illustrated: drawn, but waves and gestures with the arms.")
+        val hairs = com.spark.companion.ui.avatar.HairStyle.values().filter { it.gender == null || it.gender == b.gender }
+        chips("HAIR", hairs.map { it.label to (it == b.hair) }) { update(b.copy(hair = hairs[it]), true) }
+        if (faceBitmap != null) {
+            chips("SKIN & HAIR COLOUR", listOf("Match my photo" to b.skinFromFace, "Choose myself" to !b.skinFromFace)) {
+                update(b.copy(skinFromFace = it == 0), true)
+            }
+        }
+        if (!b.skinFromFace || faceBitmap == null) {
+            swatches("HAIR COLOUR", com.spark.companion.ui.avatar.BodySpec.HAIR_COLORS, b.hairColor) { update(b.copy(hairColor = it), true) }
+            swatches("SKIN", com.spark.companion.ui.avatar.BodySpec.SKINS, b.skin) { update(b.copy(skin = it), true) }
+        }
+        if (faceBitmap == null) {
+            swatches("EYES", com.spark.companion.ui.avatar.BodySpec.EYE_COLORS, b.eyeColor) { update(b.copy(eyeColor = it), true) }
+        }
+        if (b.gender == com.spark.companion.ui.avatar.Gender.MALE && faceBitmap == null) {
+            val beards = com.spark.companion.ui.avatar.Beard.values().toList()
+            chips("BEARD", beards.map { it.label to (it == b.beard) }) { update(b.copy(beard = beards[it]), true) }
+        }
+
+        // The outfit catalogue.
+        val outfits = com.spark.companion.ui.avatar.Outfits.forGender(b.gender)
+        heading("OUTFITS (${outfits.size})")
+        val grid = android.widget.GridLayout(this).apply { columnCount = 3 }
+        val cellW = (resources.displayMetrics.widthPixels - Ui.dp(this, 40)) / 3
+        val cellH = (cellW * 1.75f).toInt()
+        val images = ArrayList<ImageView>()
+        for (o in outfits) {
+            val cell = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER_HORIZONTAL
+                val on = o.id == b.outfitId
+                background = Ui.rounded(if (on) Ui.SURFACE_HI else Ui.SURFACE, Ui.dp(this@AvatarStudioActivity, 12).toFloat(),
+                    if (on) Ui.ACCENT else null, Ui.dp(this@AvatarStudioActivity, 2))
+                setPadding(4, 6, 4, 8)
+                setOnClickListener {
+                    update(b.copy(outfitId = o.id), true)
+                    (content.parent as? ScrollView)?.post { (content.parent as? ScrollView)?.scrollTo(0, 0) }
+                }
+            }
+            val img = ImageView(this)
+            images += img
+            cell.addView(img, LinearLayout.LayoutParams(cellW - 12, cellH - Ui.dp(this, 26)))
+            cell.addView(Ui.text(this, o.name, 11.5f, Ui.TEXT_DIM).apply {
+                gravity = Gravity.CENTER
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            })
+            grid.addView(cell, android.widget.GridLayout.LayoutParams().apply {
+                width = cellW - Ui.dp(this@AvatarStudioActivity, 4)
+                height = cellH
+                setMargins(Ui.dp(this@AvatarStudioActivity, 2), Ui.dp(this@AvatarStudioActivity, 2), Ui.dp(this@AvatarStudioActivity, 2), Ui.dp(this@AvatarStudioActivity, 2))
+            })
+        }
+        content.addView(grid)
+        // Draw the thumbnails in the background, a few at a time.
+        thumbJob = scope.launch {
+            // Thumbnails use a drawn face, in the photo's skin and hair colours when matching it.
+            val look = withContext(Dispatchers.Default) {
+                if (b.skinFromFace && faceBitmap != null && faceMarks != null) {
+                    val face = com.spark.companion.ui.avatar.PhotoFace(faceBitmap, faceMarks)
+                    b.copy(skinFromFace = false, skin = face.skinTone, hairColor = face.hairTone)
+                } else b
+            }
+            for ((i, o) in outfits.withIndex()) {
+                val bmp = withContext(Dispatchers.Default) {
+                    com.spark.companion.ui.avatar.BodyThumbs.render(
+                        look.copy(outfitId = o.id), tint, cellW - 12, cellH - Ui.dp(this@AvatarStudioActivity, 26),
+                    )
+                }
+                images[i].setImageBitmap(bmp)
+            }
+        }
+
+        button(if (outfitFromEdit) "Done" else "Save this look", primary = true) {
+            val chosen = body ?: return@button
+            if (outfitFromEdit) {
+                show(Screen.EDIT)
+                return@button
+            }
+            val profile = outfitTarget ?: return@button
+            if (chosen.realistic && realFor(chosen) == null) {
+                toast("Create the realistic photo of this outfit first, or switch to Illustrated.")
+                return@button
+            }
+            working("Saving…") {
+                var saved = withContext(Dispatchers.IO) { repo.saveBody(profile, chosen) }
+                val real = pendingReal
+                if (chosen.realistic && real != null && pendingRealOutfit == chosen.outfitId) {
+                    saved = withContext(Dispatchers.IO) { repo.saveRealBody(saved, real, pendingRealSwap, chosen.outfitId) }
+                    pendingReal = null
+                }
+                AvatarView.clearCache()
+                engine.refreshSettings()
+                toast("${saved.name} is wearing ${chosen.outfit.name}.")
+                show(Screen.HOME)
+            }
+        }
+    }
+
+    /**
+     * Makes a photo-realistic picture of the current body and outfit. With your
+     * photo and a Gemini key, Gemini keeps your likeness; otherwise the free
+     * image service draws the person and your face is swapped on.
+     */
+    private fun makeReal(facePhoto: Bitmap?) {
+        val spec = body ?: return
+        val settings = engine.settings
+        val gemini = com.spark.companion.brain.GeminiImageGen({ settings.apiKey }, { settings.imageModel }, { settings.imageModel = it }, aspectRatio = "9:16")
+        val free = PollinationsImageGen(PollinationsImageGen.TALL_WIDTH, PollinationsImageGen.TALL_HEIGHT)
+        val tryGeminiFirst = settings.apiKey.isNotBlank() && (facePhoto != null || settings.imageProvider == "gemini")
+        working("Creating a realistic photo… (20–40 seconds)") {
+            val (result, swapped) = try {
+                if (!tryGeminiFirst) throw LlmException("skip")
+                com.spark.companion.ui.avatar.RealBody.create(gemini, spec, facePhoto) to false
+            } catch (e: LlmException) {
+                // Free fallback (also when Gemini's image quota is used up).
+                com.spark.companion.ui.avatar.RealBody.create(free, spec, null) to (facePhoto != null)
+            }
+            pendingReal = result
+            pendingRealSwap = swapped
+            pendingRealOutfit = spec.outfitId
+            show(Screen.OUTFIT)
+        }
+    }
+
     /** A few seconds of pretend speech so you can check the mouth. */
     private fun animate(preview: AvatarView) {
         previewJob?.cancel()
@@ -531,9 +857,20 @@ class AvatarStudioActivity : Activity() {
                     voice = VoiceStyle(pitch, 1f, geminiVoice),
                     portrait = bitmap,
                     landmarks = landmarks,
-                    tagline = if (photo != null || editingId != null) "Your avatar" else "Made with AI",
+                    tagline = when {
+                        body != null -> "Full body · your face"
+                        photo != null || editingId != null -> "Your avatar"
+                        else -> "Made with AI"
+                    },
+                    body = body,
                 )
             }
+            val real = pendingReal
+            val b = body
+            if (b != null && b.realistic && real != null && pendingRealOutfit == b.outfitId) {
+                withContext(Dispatchers.IO) { repo.saveRealBody(saved, real, pendingRealSwap, b.outfitId) }
+            }
+            pendingReal = null
             AvatarView.clearCache()
             engine.settings.avatar = saved.id
             engine.refreshSettings()

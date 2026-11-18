@@ -37,9 +37,16 @@ class NaturalVoice(
     }
 
     /** Plays [pcm] and reports the voice level as it goes. Suspends until done or cancelled. */
-    suspend fun play(pcm: GeminiMedia.Pcm, onLevel: (Float) -> Unit) {
+    suspend fun play(pcm: GeminiMedia.Pcm, onLevel: (Float) -> Unit, onMouth: (com.spark.companion.brain.MouthShape?) -> Unit = {}) {
         val frameMs = 40
         val levels = GeminiMedia.levels(pcm, frameMs)
+        // Mouth shapes from the sound itself (jaw, lip spread and rounding).
+        val shapes = withContext(Dispatchers.Default) {
+            val samples = ShortArray(pcm.data.size / 2) { i ->
+                ((pcm.data[2 * i].toInt() and 0xFF) or (pcm.data[2 * i + 1].toInt() shl 8)).toShort()
+            }
+            com.spark.companion.brain.LipSync.fromPcm(samples, pcm.sampleRate, frameMs)
+        }
         val track = withContext(Dispatchers.IO) {
             AudioTrack.Builder()
                 .setAudioAttributes(
@@ -68,10 +75,12 @@ class NaturalVoice(
                 if (head >= totalFrames || track.playState != AudioTrack.PLAYSTATE_PLAYING) break
                 val index = (head.toLong() * 1000 / pcm.sampleRate / frameMs).toInt()
                 onLevel(levels.getOrElse(index) { 0f })
+                onMouth(shapes.getOrNull(index))
                 delay(30)
             }
         } finally {
             onLevel(0f)
+            onMouth(null)
             try {
                 track.stop()
             } catch (e: IllegalStateException) {

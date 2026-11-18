@@ -79,4 +79,26 @@ class AvatarRigTest {
         run(rig, 3_016, 8_000, asleep)
         assertTrue(rig.pose.eyeOpen < 0.05f)
     }
+
+    @Test fun bodyLanguageFollowsTheMood() {
+        val angry = AvatarRig(blinks = false).also { run(it, 0, 3_000, awake(mood = Mood.ANGRY)) }.pose
+        val sad = AvatarRig(blinks = false).also { run(it, 0, 3_000, awake(mood = Mood.SAD)) }.pose
+        val excited = AvatarRig(blinks = false).also { run(it, 0, 3_000, awake(mood = Mood.EXCITED)) }.pose
+        assertTrue("angry brows pull down", angry.browKnit > 0.8f)
+        assertTrue("angry makes fists", angry.fist > 0.8f)
+        assertTrue("sad brows lift inside", sad.browKnit < -0.8f)
+        assertTrue("sad looks down", sad.pitch > 6f)
+        assertTrue("sad shoulders slump", sad.shoulders < -0.4f)
+        assertTrue("excited raises the arms", excited.armSwing[0] > 120f && excited.armSwing[1] > 120f)
+    }
+
+    @Test fun visemesShapeTheLips() {
+        val rig = AvatarRig(blinks = false)
+        run(rig, 0, 2_000, awake())
+        run(rig, 2_000, 2_600, AvatarRig.Input(true, Phase.SPEAKING, 0.8f, Mood.CALM, com.spark.companion.brain.MouthShape(0.4f, 0f, 1f)))
+        val round = rig.pose.mouthRound
+        run(rig, 2_600, 3_200, AvatarRig.Input(true, Phase.SPEAKING, 0.8f, Mood.CALM, com.spark.companion.brain.MouthShape(0.3f, 1f, 0f)))
+        assertTrue("oo rounds the lips", round > 0.8f)
+        assertTrue("ee spreads the lips", rig.pose.mouthWide > 0.8f && rig.pose.mouthRound < 0.2f)
+    }
 }

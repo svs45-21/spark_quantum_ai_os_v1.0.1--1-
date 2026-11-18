@@ -22,12 +22,14 @@ class GeminiImageGen(
     private val apiKey: () -> String,
     model: () -> String,
     onModelSwitch: (String) -> Unit = {},
+    /** e.g. "9:16" for full-length pictures; null for the model's default (square). */
+    private val aspectRatio: String? = null,
 ) : ImageGen {
     override val canUsePhoto = true
     private val models = ModelSwitch({ model().trim().ifEmpty { GeminiMedia.DEFAULT_IMAGE_MODEL } }, onModelSwitch)
 
     override suspend fun generate(prompt: String, photoJpeg: ByteArray?): ByteArray {
-        val body = GeminiMedia.imageRequest(prompt, photoJpeg).toString()
+        val body = GeminiMedia.imageRequest(prompt, photoJpeg, aspectRatio = aspectRatio).toString()
         val key = apiKey().trim()
         val reply = models.run({ ModelCatalog.pickGeminiImage(ModelCatalog.listGemini(key)) }) { m ->
             GeminiHttp.post(GeminiHttp.endpoint(m, GeminiMedia.DEFAULT_IMAGE_MODEL), key, body, 180_000)
@@ -41,12 +43,15 @@ class GeminiImageGen(
  * It's text-to-image only, so it creates from a description but can't restyle
  * a photo.
  */
-class PollinationsImageGen : ImageGen {
+class PollinationsImageGen(
+    private val width: Int = WIDTH,
+    private val height: Int = HEIGHT,
+) : ImageGen {
     override val canUsePhoto = false
 
     override suspend fun generate(prompt: String, photoJpeg: ByteArray?): ByteArray =
         runInterruptible(Dispatchers.IO) {
-            val conn = URI(url(prompt)).toURL().openConnection() as HttpURLConnection
+            val conn = URI(url(prompt, width = width, height = height)).toURL().openConnection() as HttpURLConnection
             try {
                 conn.connectTimeout = 15_000
                 conn.readTimeout = 120_000
@@ -85,11 +90,15 @@ class PollinationsImageGen : ImageGen {
         const val WIDTH = 768
         const val HEIGHT = 768
 
-        fun url(prompt: String, seed: Int = Random.nextInt(1, 1_000_000)): String {
+        fun url(prompt: String, seed: Int = Random.nextInt(1, 1_000_000), width: Int = WIDTH, height: Int = HEIGHT): String {
             val enc = URLEncoder.encode(prompt.take(1500), "UTF-8").replace("+", "%20")
             return "https://image.pollinations.ai/prompt/$enc" +
-                "?width=$WIDTH&height=$HEIGHT&nologo=true&model=flux&seed=$seed"
+                "?width=$width&height=$height&nologo=true&model=flux&seed=$seed"
         }
+
+        /** Full-length portrait pictures (9:16) for realistic bodies. */
+        const val TALL_WIDTH = 720
+        const val TALL_HEIGHT = 1280
     }
 
 }
