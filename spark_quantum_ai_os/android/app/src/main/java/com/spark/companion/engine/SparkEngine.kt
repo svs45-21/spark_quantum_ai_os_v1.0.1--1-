@@ -7,6 +7,9 @@ import com.spark.companion.brain.ActionPolicy
 import com.spark.companion.brain.Agent
 import com.spark.companion.brain.ConfirmRequest
 import com.spark.companion.brain.GeminiClient
+import com.spark.companion.brain.Msg
+import com.spark.companion.brain.OpenAiCompatClient
+import com.spark.companion.brain.RoutingLlm
 import com.spark.companion.brain.Greetings
 import com.spark.companion.brain.LlmException
 import com.spark.companion.brain.Languages
@@ -60,8 +63,19 @@ class SparkEngine(private val context: Context) {
     private val speech = SpeechInput(context)
     private val speaker = Speaker(context)
     private val link = SparkLink({ settings.serverUrl }, { settings.serverToken })
-    private val tools = PhoneTools(context, settings, memory, link) { uiVisible.value }
-    private val agent = Agent(GeminiClient({ settings.apiKey }, { settings.model }), tools)
+    private val n8n = com.spark.companion.brain.N8n({ settings.n8nUrl }, { settings.n8nAuth })
+    private val tools = PhoneTools(context, settings, memory, link, n8n) { uiVisible.value }
+    private val llm = RoutingLlm(
+        provider = { settings.chatProvider },
+        clients = mapOf(
+            RoutingLlm.GEMINI to GeminiClient({ settings.apiKey }, { settings.model }),
+            RoutingLlm.GROQ to OpenAiCompatClient.groq({ settings.groqApiKey }, { settings.groqModel }),
+            RoutingLlm.OPENROUTER to OpenAiCompatClient.openRouter({ settings.openRouterApiKey }, { settings.openRouterModel }),
+            RoutingLlm.OLLAMA to OpenAiCompatClient.ollama({ settings.ollamaUrl }, { settings.ollamaModel }),
+            RoutingLlm.CUSTOM to OpenAiCompatClient.custom({ settings.customUrl }, { settings.customApiKey }, { settings.customModel }),
+        ),
+    )
+    private val agent = Agent(llm, tools)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var job: Job? = null
@@ -221,18 +235,59 @@ class SparkEngine(private val context: Context) {
         }
     }
 
-    suspend fun testGemini(): String = try {
-        val reply = GeminiClient({ settings.apiKey }, { settings.model }).generate(
+suspend fun testGemini(): String = try {
+        val reply = llm.generate(
             "Reply with one short friendly sentence.",
-            listOf(com.spark.companion.brain.Content.userText("Say hello to confirm you are working.")),
+            listOf(Msg.User("Say hello to confirm you are working.")),
             org.json.JSONArray()
         )
         "Connected: " + reply.text
     } catch (e: LlmException) {
-        e.message ?: "Gemini test failed."
+        e.message ?: "Connection test failed."
     }
 
     suspend fun testDesktopLink(): Boolean = link.ping()
+
+    @Volatile private var lastProactiveAt = 0L
+
+    /**
+     * A new notification arrived. If proactive mode is on and Spark is free,
+     * it gives a short spoken heads-up. Plain template, so it costs no tokens.
+     */
+    fun onIncomingNotification(app: String, title: String, text: String) {
+        if (!settings.proactiveEnabled || !settings.speakReplies || busy) return
+        if (!micOrSpeakerReady()) return
+        val now = System.currentTimeMillis()
+        if (now - lastProactiveAt < 8000) return
+        lastProactiveAt = now
+        val who = title.ifBlank { app }
+        val body = text.take(160)
+        val line = if (body.isBlank()) "New notification from $app." else "$who on $app says: $body"
+        startSession {
+            _mood.value = Mood.CALM
+            say(line)
+        }
+    }
+
+    private fun micOrSpeakerReady(): Boolean = true
+
+    /** Runs a saved routine's instruction and reads out the result. */
+    fun runRoutine(prompt: String) {
+        if (prompt.isBlank()) return
+        startSession {
+            talkLanguage = settings.primaryLanguage
+            val reply = runTurn(prompt, voice = true)
+            if (reply != null && settings.speakReplies) say(reply)
+        }
+    }
+
+    /** Speaks [text] aloud in the current language and avatar voice (used by the camera screen). */
+    fun speakExternal(text: String, mood: Mood = Mood.CALM) {
+        startSession {
+            _mood.value = mood
+            say(text)
+        }
+    }
 
     /** Says a short sample with the current avatar's voice, for the settings screen. */
     fun testVoice() {
@@ -328,7 +383,7 @@ class SparkEngine(private val context: Context) {
             val reply = agent.respond(
                 userText = text,
                 system = { systemPrompt(voice) },
-                tools = ToolCatalog.declarations(settings.desktopLinked),
+                tools = availableTools(),
                 confirm = { request -> confirm(request, voice) },
                 listener = listener,
             )
@@ -361,7 +416,9 @@ class SparkEngine(private val context: Context) {
                 now = SimpleDateFormat("EEEE, d MMMM yyyy, h:mm a", Locale.ENGLISH).format(Date()),
                 memories = facts,
                 screenControl = SparkAccessibilityService.instance != null,
+                screenControlAvailable = com.spark.companion.BuildConfig.FULL_FEATURES,
                 desktopLink = settings.desktopLinked,
+                workflows = settings.n8nConfigured,
                 voice = voice,
                 avatar = avatar.value.prompt,
                 languages = settings.languages.map { "${Languages.name(it)} ($it)" },
@@ -477,6 +534,18 @@ class SparkEngine(private val context: Context) {
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────
+
+    /** The tools this build offers the model. The Play build has no screen control. */
+    private fun availableTools(): org.json.JSONArray {
+        val all = ToolCatalog.declarations(settings.desktopLinked, settings.n8nConfigured)
+        if (com.spark.companion.BuildConfig.FULL_FEATURES) return all
+        val out = org.json.JSONArray()
+        for (i in 0 until all.length()) {
+            val decl = all.getJSONObject(i)
+            if (decl.optString("name") !in ToolCatalog.SCREEN_TOOLS) out.put(decl)
+        }
+        return out
+    }
 
     companion object {
         const val SLEEP_AFTER_MS = 15_000L

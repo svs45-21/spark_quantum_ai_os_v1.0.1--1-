@@ -1,6 +1,6 @@
 package com.spark.companion
 
-import com.spark.companion.brain.Content
+import com.spark.companion.brain.Msg
 import com.spark.companion.brain.GeminiClient
 import com.spark.companion.brain.LlmException
 import com.spark.companion.brain.ToolCatalog
@@ -23,7 +23,7 @@ class GeminiClientTest {
         assertEquals("open_app", reply.calls[0].name)
         assertEquals("Maps", reply.calls[0].args.getString("name"))
         // Signature must survive so it can be replayed.
-        assertTrue(reply.content.toString().contains("thoughtSignature"))
+        assertTrue(reply.assistant.raw.toString().contains("thoughtSignature"))
     }
 
     @Test(expected = LlmException::class)
@@ -32,7 +32,7 @@ class GeminiClientTest {
     }
 
     @Test fun requestShape() {
-        val req = GeminiClient.buildRequest("sys", listOf(Content.userText("hi")), ToolCatalog.declarations(false))
+        val req = GeminiClient.buildRequest("sys", listOf(Msg.User("hi")), ToolCatalog.declarations(false))
         assertEquals("sys", req.getJSONObject("systemInstruction").getJSONArray("parts").getJSONObject(0).getString("text"))
         assertEquals(1, req.getJSONArray("contents").length())
         val decls = req.getJSONArray("tools").getJSONObject(0).getJSONArray("functionDeclarations")
@@ -50,7 +50,7 @@ class GeminiClientTest {
 
     @Test fun friendlyErrors() {
         assertTrue(GeminiClient.errorMessage(403, "").contains("API key"))
-        assertTrue(GeminiClient.errorMessage(429, "").contains("rate limit"))
+        assertTrue(GeminiClient.errorMessage(429, "").contains("usage limit"))
         assertTrue(GeminiClient.endpoint("models/gemini-2.5-pro").endsWith("/gemini-2.5-pro:generateContent"))
     }
 }

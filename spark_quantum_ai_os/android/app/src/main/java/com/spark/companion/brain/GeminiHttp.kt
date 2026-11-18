@@ -19,7 +19,7 @@ object GeminiHttp {
         return BASE + URLEncoder.encode(name, "UTF-8") + ":generateContent"
     }
 
-    private class Transient(message: String) : Exception(message)
+    private class Transient(message: String, val rateLimited: Boolean = false) : Exception(message)
 
     /** POSTs [body] and returns the parsed JSON reply. Retries once on transient errors. */
     @Throws(LlmException::class)
@@ -36,7 +36,8 @@ object GeminiHttp {
                 }
             } catch (e: Transient) {
                 last = LlmException(e.message ?: "Temporary problem reaching Gemini.", e)
-                if (attempt == 0) delay(1500)
+                // Rate limits need a longer pause than a server blip.
+                if (attempt == 0) delay(if (e.rateLimited) 6000 else 1500)
             } catch (e: IOException) {
                 last = LlmException("I can't reach the internet right now.", e)
                 if (attempt == 0) delay(1000)
@@ -60,7 +61,8 @@ object GeminiHttp {
             val text = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
             if (code in 200..299) return text
             val message = errorMessage(code, text)
-            if (code == 429 || code >= 500) throw Transient(message)
+            if (code == 429) throw Transient(message, rateLimited = true)
+            if (code >= 500) throw Transient(message)
             throw LlmException(message)
         } finally {
             conn.disconnect()
@@ -80,7 +82,7 @@ object GeminiHttp {
             else "Gemini rejected the request: $short"
             401, 403 -> "The Gemini API key was refused. Check it in Spark settings."
             404 -> "Gemini doesn't know that model name. Check the model in Spark settings."
-            429 -> "Gemini's rate limit was hit. Give me a moment and try again."
+            429 -> "Gemini's usage limit for now was hit. On the free plan, AI image and voice have a small quota. Wait a minute and try again, or use the photo as it is."
             else -> "Gemini had a problem ($code). $short".trim()
         }
     }

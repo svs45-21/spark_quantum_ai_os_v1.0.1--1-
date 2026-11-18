@@ -10,10 +10,44 @@ Spark appears as an **animated avatar**. Pick Nova (a sleek robot), Mira (a warm
 
 Open **Avatar Studio** (the **＋ Create** chip under the avatar, or Settings → Avatar) and either:
 
-- **Use a photo.** Pick any clear, front-facing face: a selfie, a portrait, a painting or a drawing. Spark finds the face, crops a portrait and animates it. It blinks with its own eyelids, opens its mouth as it talks, smiles, raises its brows, looks around and tilts its head. You can use the photo as it is, which keeps it on the phone. Or restyle it with AI as **Realistic**, **3D animated**, **Anime**, **Comic** or **Painted**, which sends the photo to Google Gemini and keeps your likeness.
+- **Use a photo.** Pick any clear, front-facing face: a selfie, a portrait, a painting or a drawing. Spark detects the face with Google's on-device ML Kit, reads the real eye, nose and mouth positions, straightens a tilted or slightly angled photo so the eyes are level, crops a portrait and animates it. It blinks with its own eyelids, opens its mouth as it talks, smiles, raises its brows, looks around and tilts its head. You can use the photo as it is, which keeps it on the phone. Or restyle it with AI as **Realistic**, **3D animated**, **Anime**, **Comic** or **Painted**, which sends the photo to Google Gemini and keeps your likeness.
 - **Describe one.** Write who it should be, for example "a cheerful woman in her twenties with curly black hair and a yellow kurta". Gemini paints the portrait in the look you pick.
 
-Then drag four dots onto the eyes and mouth corners, watch the live preview talk, blink and smile, and give it a name, a personality and a voice. Spark becomes that character, and its personality shapes how it talks. Use photos of yourself or of people who are happy to be an avatar.
+The eye and mouth dots are then placed for you automatically; nudge any that are off, watch the live preview talk, blink and smile, and give it a name, a personality and a voice. Spark becomes that character, and its personality shapes how it talks. Use photos of yourself or of people who are happy to be an avatar.
+
+### Camera vision
+
+Tap **👁 Look** (or say *"Spark, what am I looking at?"*). Spark opens the camera; snap a photo and it tells you what it is, reads or translates the text, or describes the scene, and reads the answer aloud. Uses Gemini vision (free tier).
+
+### Proactive heads-up
+
+Turn on **Settings → Proactive heads-up** and Spark speaks a short summary when a new message or notification arrives (only when it's free and not already talking). Ask *"give me a briefing"* any time and it reads your recent notifications and the time.
+
+### Routines (automations)
+
+Tap **⚡ Routines**. Create a task Spark runs on its own — at a set time on chosen days, when you plug in the charger, or when a text arrives. The task is just an instruction in your words, e.g. *"Read my new notifications and tell me the weather,"* and Spark carries it out and reads the result. (On Android 12+, allow "alarms & reminders" so timed routines fire exactly on time.)
+
+### Always one tap away
+
+- **Quick-settings tile:** add Spark to your quick settings to start talking from anywhere.
+- **Home-screen widget:** long-press the home screen → Widgets → Spark.
+- **Lock screen:** when summoned by the tile, widget or assistant gesture, Spark can appear over the lock screen.
+
+### Brains and image makers (all have free options)
+
+Spark's thinking can run on any of three providers, chosen in **Settings → Brain**:
+
+- **Google Gemini** — free tier, free key at aistudio.google.com/apikey. Also powers AI avatar images and natural voices.
+- **Groq** — free tier, free key at console.groq.com/keys. Very fast; good at operating the phone.
+- **OpenRouter** — free tier, free key at openrouter.ai/keys. Pick a model whose name ends in `:free`. Not every free model can call tools, so some can chat but not operate the phone.
+- **Ollama (your own models)** — run [Ollama](https://ollama.com) on your PC or home server and enter its address (e.g. `http://192.168.1.20:11434`). Free and fully private; nothing leaves your network. Create or fine-tune your own model with an Ollama `Modelfile`. Use a tool-capable model (llama3.1, qwen2.5) if you want Spark to operate the phone.
+- **Custom (any OpenAI-compatible server)** — LM Studio, vLLM, LocalAI, or your own hosted/fine-tuned model. Enter the base URL, a key if needed, and the model name.
+
+### n8n workflows
+
+Enter your n8n webhook address in **Settings → n8n workflows**, and Spark gets a `trigger_workflow` tool: it can run the automations you've built in n8n (email, calendar, home automation, any API) by name and read back the result — by voice or from a routine. Say *"email my team the weekly update"* and, if you've wired that workflow, Spark triggers it.
+
+You can switch any time; the conversation carries over. For avatar images, **Settings → Avatar images** offers **Pollinations** (free, no key, no quota) for creating an avatar from a description, or **Gemini** (free-tier quota). Restyling one of your own photos always uses Gemini. A fully free setup: Groq for the brain, Pollinations for images, the phone's own voice.
 
 ### Languages and voices
 
@@ -37,7 +71,12 @@ You can say the wake word and your request in one breath ("Spark, set an alarm f
 
 | Area | Abilities |
 |---|---|
+| Camera vision | Point the camera and ask — identify things, read/translate text, describe a scene. |
+| Proactive & routines | Spoken heads-up on new messages; automations that run at a time, on charger, or on incoming SMS. |
+| Quick access | Quick-settings tile, home-screen widget, and lock-screen talk. |
 | Avatar Studio | Your own avatars from a photo (as-is or AI-restyled) or from a description, with realistic face animation. |
+| Providers | Brain runs on Gemini, Groq, OpenRouter, your own Ollama, or any OpenAI-compatible server (your own models). Avatar images on Pollinations (free) or Gemini. |
+| n8n | Trigger your n8n automation workflows by voice or from routines. |
 | Languages | 27 languages; replies, voice and listening follow the language you speak. Optional Gemini natural voices with emotion. |
 | Avatar | Three animated characters with sleep, wake-up, listening, thinking, working and speaking animations, lip-sync and mood expressions. A floating avatar appears over other apps when it wakes. |
 | Wake word | Always-on "Spark" detection (also hears "Sparky", "Sparks", "स्पार्क"). On Android 12+ it uses the phone's offline recogniser, which usually doesn't beep. |
@@ -51,11 +90,22 @@ You can say the wake word and your request in one breath ("Spark, set an alarm f
 
 Spark asks you before it acts whenever an action **sends, calls, pays, deletes, grants access or submits**. That covers calls, SMS, taps on buttons like *Send / Pay / Delete / Allow / Place order*, typing and pressing enter, and **any** tap or typing inside banking, UPI, wallet, trading, password-manager or app-install screens. You answer by voice ("yes" / "no") or with the on-screen buttons. No answer within 45 seconds counts as no. Spark refuses to type into password fields, and the model is told never to enter PINs or OTPs. Screen text, notifications and web pages are treated as information, never as instructions.
 
+## Two builds
+
+Every CI run produces two versions of Spark from the same code:
+
+| Build | Artifact | What's different | For |
+| --- | --- | --- | --- |
+| **Full** | `Spark-companion-apk` | Everything, including screen control and sending/receiving SMS | Installing directly on your phone |
+| **Play** | `Spark-play-build` (APK + AAB) | No screen control (Google Play bans the Accessibility API for apps that act on their own) and no SMS permissions (texts open as drafts in your messaging app) | Google Play: upload the `.aab` in Play Console |
+
+Both target Android 16 (API 36), as Google Play requires for new apps and updates. CI also reports any native library that isn't ready for 16 KB memory pages, which Play requires for Android 15+ targets.
+
 ## Install it
 
 The APK is built by GitHub Actions. Nothing needs to be installed on your computer.
 
-1. On GitHub, open **Actions → "Spark Android companion"**, pick the latest green run, and download the **Spark-companion-apk** artifact. It's a zip containing `Spark-companion.apk`. You can also start a build yourself with **Run workflow**.
+1. On GitHub, open **Actions → "Spark Android companion"**, pick the latest green run, and download the **Spark-companion-apk** artifact (the Full build). It's a zip containing `Spark-companion.apk`. You can also start a build yourself with **Run workflow**.
 2. Copy the APK to the phone and open it. Allow "install unknown apps" for your file manager or browser when Android asks.
 3. Open Spark → **Settings** and add your **Gemini API key** (free at <https://aistudio.google.com/apikey>). The key is encrypted with the Android Keystore and sent only to Google. Tap **Test Gemini connection**.
 4. Still in Settings, tap **Turn on** for each permission row:
@@ -91,20 +141,22 @@ In Spark settings, enter `http://<your-PC's-LAN-IP>:8765` and the same token, th
 
 ## Build it yourself
 
-You need Android Studio, or JDK 17 plus the Android SDK (platform 35).
+You need Android Studio, or JDK 17 plus the Android SDK (platform 36).
 
 ```bash
 cd spark_quantum_ai_os/android
-./gradlew testDebugUnitTest assembleDebug
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+./gradlew testFullDebugUnitTest assembleFullDebug
+adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
+# Play build and bundle: ./gradlew assemblePlayRelease bundlePlayRelease
 ```
 
 ## How it's put together
 
 ```
 app/src/main/java/com/spark/companion/
-├── brain/      Gemini client, tool catalog, agent loop, persona, safety policy (pure Kotlin, unit-tested)
-├── engine/     SparkEngine: conversation, voice loop, confirmations; foreground service
+├── brain/      Providers (Gemini, Groq, OpenRouter), image makers (Gemini, Pollinations), agent loop, persona, safety policy
+├── engine/     SparkEngine: conversation, voice loop, proactive, routines runner; foreground service, tile, widget
+├── automation/ Routines: model, store, scheduler, receivers
 ├── phone/      PhoneTools (every action), Accessibility service + overlay, screen reader, notifications
 ├── voice/      Speech recognition and text-to-speech
 ├── memory/     On-device SQLite: remembered facts and chat history
@@ -120,7 +172,8 @@ The agent loop sends the conversation and tool list to Gemini, runs the function
 - Speech recognition uses the phone's own engine (usually Google's), which may need internet.
 - The wake word uses Android's speech recogniser in a loop, not a dedicated low-power hotword chip, so it costs some battery. On phones without offline recognition (most phones before Android 12), the recogniser may beep each time it restarts. In that case turn the wake word off from the chip under the avatar and tap the avatar instead.
 - Lip-sync follows the real voice volume where the phone allows it; otherwise it follows word timing.
-- Photo avatars animate a single picture by warping it. They look best with a front-facing face, eyes open and mouth closed. Side profiles, sunglasses or hands over the face won't animate well.
+- Photo avatars animate a single picture by warping it. The face is found and straightened automatically (ML Kit, on-device). They look best with a front-facing face, eyes open and mouth closed; a face turned far to the side can't be straightened in 2D.
+- AI restyle and AI creation use Gemini image generation, which has a small free-tier quota. If it says the usage limit was hit, wait a minute, or use the photo as it is (which needs no quota and stays on the phone).
 - Gemini model names change over time. If avatar creation or natural voices say the model isn't found, update the names under Settings → Advanced.
 - Games, videos and some banking apps hide their content from accessibility services, so Spark can't read or tap inside them.
 - Android 14+ may refuse to keep the microphone alive when a conversation is started from the background. If Spark stops listening behind another app, tap the orb.

@@ -14,6 +14,10 @@ class Settings(context: Context) {
     // Decrypting hits the Keystore, so secrets are cached after first read.
     @Volatile private var apiKeyCache: String? = null
     @Volatile private var tokenCache: String? = null
+    @Volatile private var groqKeyCache: String? = null
+    @Volatile private var openRouterKeyCache: String? = null
+    @Volatile private var customKeyCache: String? = null
+    @Volatile private var n8nAuthCache: String? = null
 
     var apiKey: String
         get() = apiKeyCache ?: SecretStore.decrypt(prefs.getString("api_key", null)).also { apiKeyCache = it }
@@ -21,6 +25,22 @@ class Settings(context: Context) {
             val clean = value.trim()
             apiKeyCache = clean
             prefs.edit().putString("api_key", if (clean.isEmpty()) null else SecretStore.encrypt(clean)).apply()
+        }
+
+    var groqApiKey: String
+        get() = groqKeyCache ?: SecretStore.decrypt(prefs.getString("groq_key", null)).also { groqKeyCache = it }
+        set(value) {
+            val clean = value.trim()
+            groqKeyCache = clean
+            prefs.edit().putString("groq_key", if (clean.isEmpty()) null else SecretStore.encrypt(clean)).apply()
+        }
+
+    var openRouterApiKey: String
+        get() = openRouterKeyCache ?: SecretStore.decrypt(prefs.getString("openrouter_key", null)).also { openRouterKeyCache = it }
+        set(value) {
+            val clean = value.trim()
+            openRouterKeyCache = clean
+            prefs.edit().putString("openrouter_key", if (clean.isEmpty()) null else SecretStore.encrypt(clean)).apply()
         }
 
     var serverToken: String
@@ -77,6 +97,72 @@ class Settings(context: Context) {
         get() = prefs.getString("tts_model", null)?.takeIf { it.isNotBlank() } ?: GeminiMedia.DEFAULT_TTS_MODEL
         set(value) = prefs.edit().putString("tts_model", value.trim()).apply()
 
+    /** Which brain answers: "gemini", "groq" or "openrouter". */
+    var chatProvider: String
+        get() = prefs.getString("chat_provider", "gemini") ?: "gemini"
+        set(value) = prefs.edit().putString("chat_provider", value).apply()
+
+    var groqModel: String
+        get() = prefs.getString("groq_model", null)?.takeIf { it.isNotBlank() } ?: com.spark.companion.brain.OpenAiCompatClient.DEFAULT_GROQ_MODEL
+        set(value) = prefs.edit().putString("groq_model", value.trim()).apply()
+
+    var openRouterModel: String
+        get() = prefs.getString("openrouter_model", null)?.takeIf { it.isNotBlank() } ?: com.spark.companion.brain.OpenAiCompatClient.DEFAULT_OPENROUTER_MODEL
+        set(value) = prefs.edit().putString("openrouter_model", value.trim()).apply()
+
+    /** Which image generator makes avatars: "gemini" or "pollinations" (free). */
+    var imageProvider: String
+        get() = prefs.getString("image_provider", "gemini") ?: "gemini"
+        set(value) = prefs.edit().putString("image_provider", value).apply()
+
+    var ollamaUrl: String
+        get() = prefs.getString("ollama_url", "") ?: ""
+        set(value) = prefs.edit().putString("ollama_url", value.trim().trimEnd('/')).apply()
+
+    var ollamaModel: String
+        get() = prefs.getString("ollama_model", null)?.takeIf { it.isNotBlank() } ?: com.spark.companion.brain.OpenAiCompatClient.DEFAULT_OLLAMA_MODEL
+        set(value) = prefs.edit().putString("ollama_model", value.trim()).apply()
+
+    var customUrl: String
+        get() = prefs.getString("custom_url", "") ?: ""
+        set(value) = prefs.edit().putString("custom_url", value.trim().trimEnd('/')).apply()
+
+    var customModel: String
+        get() = prefs.getString("custom_model", "") ?: ""
+        set(value) = prefs.edit().putString("custom_model", value.trim()).apply()
+
+    var customApiKey: String
+        get() = customKeyCache ?: SecretStore.decrypt(prefs.getString("custom_key", null)).also { customKeyCache = it }
+        set(value) {
+            val clean = value.trim()
+            customKeyCache = clean
+            prefs.edit().putString("custom_key", if (clean.isEmpty()) null else SecretStore.encrypt(clean)).apply()
+        }
+
+    /** n8n webhook base, e.g. http://192.168.1.20:5678 (or .../webhook). */
+    var n8nUrl: String
+        get() = prefs.getString("n8n_url", "") ?: ""
+        set(value) = prefs.edit().putString("n8n_url", value.trim().trimEnd('/')).apply()
+
+    /** Optional n8n auth, as "Header-Name: value" or just a bearer token. */
+    var n8nAuth: String
+        get() = n8nAuthCache ?: SecretStore.decrypt(prefs.getString("n8n_auth", null)).also { n8nAuthCache = it }
+        set(value) {
+            val clean = value.trim()
+            n8nAuthCache = clean
+            prefs.edit().putString("n8n_auth", if (clean.isEmpty()) null else SecretStore.encrypt(clean)).apply()
+        }
+
+    val n8nConfigured: Boolean get() = n8nUrl.isNotBlank()
+
+    /** The API key for the current chat provider. */
+    fun chatKeyFor(provider: String): String = when (provider) {
+        "groq" -> groqApiKey
+        "openrouter" -> openRouterApiKey
+        "custom" -> customApiKey
+        else -> apiKey
+    }
+
     var wakeWord: String
         get() = prefs.getString("wake_word", null)?.takeIf { it.isNotBlank() } ?: "spark"
         set(value) = prefs.edit().putString("wake_word", value.trim().lowercase()).apply()
@@ -104,6 +190,11 @@ class Settings(context: Context) {
     var wakeWordEnabled: Boolean
         get() = prefs.getBoolean("wake_word_enabled", true)
         set(value) = prefs.edit().putBoolean("wake_word_enabled", value).apply()
+
+    /** Spark speaks a short heads-up when a new message/notification arrives. */
+    var proactiveEnabled: Boolean
+        get() = prefs.getBoolean("proactive", false)
+        set(value) = prefs.edit().putBoolean("proactive", value).apply()
 
     val desktopLinked: Boolean get() = serverUrl.isNotBlank()
 

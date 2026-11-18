@@ -47,12 +47,15 @@ object ToolCatalog {
         return decl
     }
 
+    /** Tools that drive other apps' screens through the Accessibility service. */
+    val SCREEN_TOOLS = setOf("read_screen", "tap", "type_text", "scroll", "press_button", "wait")
+
     val names: List<String> by lazy {
-        val all = declarations(includeDesktopLink = true)
+        val all = declarations(includeDesktopLink = true, includeWorkflow = true)
         (0 until all.length()).map { all.getJSONObject(it).getString("name") }
     }
 
-    fun declarations(includeDesktopLink: Boolean): JSONArray {
+    fun declarations(includeDesktopLink: Boolean, includeWorkflow: Boolean = false): JSONArray {
         val list = mutableListOf(
             // ── Apps & web ─────────────────────────────────────────────
             tool(
@@ -223,6 +226,10 @@ object ToolCatalog {
                 "Get battery level, charging state, network, volume and which app is on screen."
             ),
             tool(
+                "open_camera",
+                "Open Spark's camera so the user can show you something and you can see it — for 'what is this', reading or translating text, or describing what's in front of them."
+            ),
+            tool(
                 "read_notifications",
                 "Read the user's recent notifications (who messaged, what arrived).",
                 listOf("limit" to int("How many, newest first (default 10)"))
@@ -252,6 +259,19 @@ object ToolCatalog {
                     "sources, writing documents (Word, PDF, PowerPoint, Excel), writing or running " +
                     "code, or controlling the PC. Returns what SPARK replied.",
                 listOf("request" to str("The full request in plain language")), listOf("request")
+            )
+        }
+        if (includeWorkflow) {
+            list += tool(
+                "trigger_workflow",
+                "Run one of the user's own n8n automation workflows by its webhook name, passing " +
+                    "the request to it, and return what it replies. Use for anything the user has " +
+                    "set up in n8n (email, calendar, home automation, external services).",
+                listOf(
+                    "workflow" to str("The workflow's webhook name/path, e.g. 'send-email' or 'daily-report'"),
+                    "input" to str("What to send to the workflow, in plain language"),
+                ),
+                listOf("workflow")
             )
         }
         return JSONArray(list)

@@ -19,8 +19,10 @@ import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import com.spark.companion.SparkApp
-import com.spark.companion.brain.GeminiHttp
+import com.spark.companion.brain.GeminiImageGen
 import com.spark.companion.brain.GeminiMedia
+import com.spark.companion.brain.ImageGen
+import com.spark.companion.brain.PollinationsImageGen
 import com.spark.companion.brain.LlmException
 import com.spark.companion.engine.Phase
 import com.spark.companion.ui.avatar.AvatarProfile
@@ -92,17 +94,47 @@ class AvatarStudioActivity : Activity() {
         super.onDestroy()
     }
 
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
+    /** Back steps through the studio's screens before leaving it. */
+    private fun goBack(): Boolean {
         when (screen) {
-            Screen.HOME -> @Suppress("DEPRECATION") super.onBackPressed()
+            Screen.HOME -> return false
             Screen.EDIT -> show(if (editingId != null) Screen.HOME else if (photo != null) Screen.PHOTO else Screen.DESCRIBE)
             else -> show(Screen.HOME)
         }
+        return true
+    }
+
+    // Android 13+ (and always on Android 16) delivers back through
+    // OnBackInvokedCallback instead of onBackPressed. The callback is only
+    // registered while there is a studio screen to go back to, so on the home
+    // screen back leaves the activity normally (and the system animation shows).
+    private val backCallback: Any? =
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU)
+            android.window.OnBackInvokedCallback { goBack() } else null
+    private var backRegistered = false
+
+    private fun syncBackCallback() {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) return
+        val cb = backCallback as android.window.OnBackInvokedCallback
+        val want = screen != Screen.HOME
+        if (want && !backRegistered) {
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, cb)
+            backRegistered = true
+        } else if (!want && backRegistered) {
+            onBackInvokedDispatcher.unregisterOnBackInvokedCallback(cb)
+            backRegistered = false
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        // Android 12 and older.
+        if (!goBack()) @Suppress("DEPRECATION") super.onBackPressed()
     }
 
     private fun show(next: Screen) {
         screen = next
+        syncBackCallback()
         previewJob?.cancel()
         content.removeAllViews()
         when (next) {
@@ -300,11 +332,11 @@ class AvatarStudioActivity : Activity() {
             adjustViewBounds = true
         }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             .apply { topMargin = Ui.dp(this@AvatarStudioActivity, 10) })
-        note(if (faceFound) "Face found. You'll fine-tune the eyes and mouth on the next screen."
-        else "I couldn't find a face automatically, so you'll place the eye and mouth dots yourself on the next screen.")
+        note(if (faceFound) "Face found, straightened and centred. On the next screen the eye and mouth dots are already placed — just check them."
+        else "I couldn't find a face in this picture, so on the next screen you'll place the eye and mouth dots yourself. A clear, front-facing face works best.")
         button("Use this photo as it is", primary = true) { show(Screen.EDIT) }
         heading("OR RESTYLE IT WITH AI")
-        note("Gemini redraws the picture in the style you pick, keeping the likeness. Takes 10–30 seconds.")
+        note("Gemini redraws the picture in the style you pick, keeping the likeness. Takes 10–30 seconds. On the free plan this has a small quota — if it says the limit was hit, wait a minute, or just use the photo as it is above.")
         for (style in GeminiMedia.ImageStyle.values()) {
             button(style.label) { generate(GeminiMedia.convertPrompt(style), photo) }
         }
@@ -316,6 +348,8 @@ class AvatarStudioActivity : Activity() {
     private fun buildDescribe() {
         title("Describe your avatar")
         note("Who should Spark look like? Describe the face, age, hair, clothes and vibe.")
+        val free = engine.settings.imageProvider == "pollinations"
+        note(if (free) "Using the free image maker (Pollinations) — no key, no quota." else "Using Gemini (free-tier quota). You can switch to the free image maker in Spark settings.")
         field("e.g. a cheerful woman in her twenties with curly black hair, a yellow kurta and a warm smile", description, multiline = true) {
             description = it
         }
@@ -329,19 +363,25 @@ class AvatarStudioActivity : Activity() {
     }
 
     /** Asks Gemini for a portrait, then moves to the editor. */
+    /** Picks the image generator: Pollinations (free) unless restyling a photo. */
+    private fun imageGen(needsPhoto: Boolean): ImageGen {
+        val gemini = GeminiImageGen({ engine.settings.apiKey }, { engine.settings.imageModel })
+        if (needsPhoto) return gemini
+        return if (engine.settings.imageProvider == "pollinations") PollinationsImageGen() else gemini
+    }
+
     private fun generate(prompt: String, source: Bitmap?) {
-        if (engine.settings.apiKey.isBlank()) {
-            toast("Add your Gemini API key in Spark settings first.")
+        val gen = imageGen(needsPhoto = source != null)
+        if (gen is GeminiImageGen && engine.settings.apiKey.isBlank()) {
+            toast("Add your Gemini API key in Spark settings, or switch to the free image maker in Settings.")
             return
         }
-        working("Gemini is drawing your avatar…") {
+        val label = if (gen is PollinationsImageGen) "Drawing your avatar (free)…" else "Gemini is drawing your avatar…"
+        working(label) {
             val bytes = withContext(Dispatchers.Default) { source?.let { FaceTools.jpeg(it) } }
-            val body = GeminiMedia.imageRequest(prompt, bytes).toString()
-            val url = GeminiHttp.endpoint(engine.settings.imageModel, GeminiMedia.DEFAULT_IMAGE_MODEL)
-            val reply = GeminiHttp.post(url, engine.settings.apiKey, body, 180_000)
-            val image = GeminiMedia.parseImage(reply)
+            val image = gen.generate(prompt, bytes)
             val bitmap = withContext(Dispatchers.Default) { FaceTools.decode(image) }
-                ?: throw LlmException("Gemini's image couldn't be opened.")
+                ?: throw LlmException("The generated image couldn't be opened.")
             val framed = withContext(Dispatchers.Default) { FaceTools.portrait(bitmap, tight = false) }
             startNew(framed)
             show(Screen.EDIT)
@@ -353,7 +393,7 @@ class AvatarStudioActivity : Activity() {
     private fun buildEdit() {
         val bitmap = portrait ?: return show(Screen.HOME)
         title(if (editingId != null) "Edit ${name}" else "Bring it to life")
-        note("Drag the blue dots onto the centre of each eye and the pink dots onto the corners of the mouth.")
+        note("The dots are placed for you. Drag any that are off: blue on the centre of each eye, pink on the corners of the mouth. The preview updates as you move them.")
         val preview = AvatarView(this).apply { awake = true }
         val editor = LandmarkEditorView(this).apply {
             this.bitmap = bitmap

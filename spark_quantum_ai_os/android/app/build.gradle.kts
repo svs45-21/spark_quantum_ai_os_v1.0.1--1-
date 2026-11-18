@@ -5,14 +5,36 @@ plugins {
 
 android {
     namespace = "com.spark.companion"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.spark.companion"
         minSdk = 26
-        targetSdk = 34
+        // Google Play requires API 36 for new apps and updates since Aug 31, 2026.
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
+    }
+
+    buildFeatures {
+        buildConfig = true
+    }
+
+    // Two builds from one codebase:
+    //  - play: passes Google Play policy. No screen control (Play bans the
+    //    Accessibility API for autonomous agents) and no SMS permissions
+    //    (texts are drafted in the messaging app instead).
+    //  - full: every feature, distributed as a direct APK.
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("play") {
+            dimension = "distribution"
+            buildConfigField("boolean", "FULL_FEATURES", "false")
+        }
+        create("full") {
+            dimension = "distribution"
+            buildConfigField("boolean", "FULL_FEATURES", "true")
+        }
     }
 
     // Optional stable signing key, supplied by CI secrets (see android/README.md).
@@ -55,6 +77,13 @@ dependencies {
     // Deliberately framework-only: no AndroidX, so the app stays small and
     // the build has very few moving parts.
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+
+    // On-device face detection (eyes, nose, mouth, tilt). Bundled model, no
+    // Google Play Services needed. Adds a few MB to the APK.
+    implementation("com.google.mlkit:face-detection:16.1.7")
+
+    // For FileProvider (sharing the camera photo) and quick-access widget bits.
+    implementation("androidx.core:core-ktx:1.13.1")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")

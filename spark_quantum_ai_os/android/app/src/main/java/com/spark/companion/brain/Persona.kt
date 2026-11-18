@@ -8,7 +8,10 @@ object Persona {
         val now: String,
         val memories: List<String>,
         val screenControl: Boolean,
+        /** False in the Play build, which has no screen control at all. */
+        val screenControlAvailable: Boolean = true,
         val desktopLink: Boolean,
+        val workflows: Boolean = false,
         val voice: Boolean,
         /** How the avatar looks and behaves; empty for none. */
         val avatar: String = "",
@@ -49,7 +52,13 @@ Doing things on the phone
         append("\n\n")
         if (c.avatar.isNotBlank()) append(c.avatar).append("\n\n")
         if (c.languages.isNotEmpty()) append("$name speaks: ").append(c.languages.joinToString(", ")).append(".\n\n")
-        if (c.screenControl) {
+        if (!c.screenControlAvailable) {
+            append(
+                """
+This version of Spark can't operate other apps' screens. Use the direct tools (alarms, calls, messages as drafts, navigation, media, camera and so on). If a request would need tapping inside another app, say plainly that this version can't do that and offer the closest thing you can do.
+""".trimIndent()
+            )
+        } else if (c.screenControl) {
             append(
                 """
 Screen control is ON. To work inside an app: open_app, then read_screen, then tap / type_text / scroll using the element numbers, reading the screen again after it changes. Stop and tell $name if you are not making progress after a few tries.
@@ -65,6 +74,9 @@ Screen control is OFF (the accessibility service is not enabled), so read_screen
         append("\n\n")
         if (c.desktopLink) {
             append("The desktop SPARK system is linked. Use ask_desktop_spark for heavy research, documents, code or PC control.\n\n")
+        }
+        if (c.workflows) {
+            append("The user's n8n automations are available. Use trigger_workflow to run one when a request matches something they'd have built there.\n\n")
         }
         if (c.voice) {
             append("This is a spoken conversation: your reply will be read aloud, so write it the way you would say it.\n\n")

@@ -2,11 +2,12 @@ package com.spark.companion
 
 import com.spark.companion.brain.Agent
 import com.spark.companion.brain.ConfirmRequest
-import com.spark.companion.brain.Content
 import com.spark.companion.brain.Llm
 import com.spark.companion.brain.LlmException
 import com.spark.companion.brain.LlmReply
+import com.spark.companion.brain.Msg
 import com.spark.companion.brain.ToolCall
+import com.spark.companion.brain.ToolResult
 import com.spark.companion.brain.ToolHost
 import kotlinx.coroutines.test.runTest
 import org.json.JSONArray
@@ -19,18 +20,16 @@ import org.junit.Test
 class AgentTest {
 
     private fun call(name: String, args: JSONObject = JSONObject()): LlmReply {
-        val content = JSONObject().put("role", "model").put(
-            "parts", JSONArray().put(JSONObject().put("functionCall", JSONObject().put("name", name).put("args", args)))
-        )
-        return LlmReply(content, "", listOf(ToolCall(name, args)))
+        val tc = ToolCall(name, args, "id_$name")
+        return LlmReply(Msg.Assistant("", listOf(tc)), "", listOf(tc))
     }
 
-    private fun text(t: String) = LlmReply(Content.modelText(t), t, emptyList())
+    private fun text(t: String) = LlmReply(Msg.Assistant(t), t, emptyList())
 
     /** Scripted model that also records each history it was given. */
     private class FakeLlm(val replies: MutableList<() -> LlmReply>) : Llm {
-        val seen = ArrayList<List<JSONObject>>()
-        override suspend fun generate(system: String, history: List<JSONObject>, tools: JSONArray): LlmReply {
+        val seen = ArrayList<List<Msg>>()
+        override suspend fun generate(system: String, history: List<Msg>, tools: JSONArray): LlmReply {
             seen.add(history.toList())
             return replies.removeAt(0)()
         }
@@ -57,7 +56,7 @@ class AgentTest {
         // user, model(call), tool result, model(text)
         assertEquals(4, agent.historySize)
         val toolTurn = llm.seen[1].last()
-        assertTrue(toolTurn.toString().contains("functionResponse"))
+        assertTrue(toolTurn is Msg.ToolResults)
     }
 
     @Test fun declinedActionIsNotExecuted() = runTest {
@@ -67,7 +66,8 @@ class AgentTest {
         val answer = agent.respond("text mom", { "sys" }, JSONArray(), { false })
         assertEquals("Okay, I won't send it.", answer)
         assertTrue(host.executed.isEmpty())
-        assertTrue(llm.seen[1].last().toString().contains("did not approve"))
+        val tr = llm.seen[1].last() as Msg.ToolResults
+        assertTrue(tr.results[0].result.optString("error").contains("did not approve"))
     }
 
     @Test fun approvedActionRuns() = runTest {
@@ -108,7 +108,7 @@ class AgentTest {
         } catch (e: LlmException) { }
         assertEquals(0, agent.historySize)
         agent.respond("hello", { "sys" }, JSONArray(), { true })
-        assertFalse(llm.seen.last().any { it.toString().contains("functionCall") })
+        assertFalse(llm.seen.last().any { it is Msg.Assistant && it.calls.isNotEmpty() })
     }
 
     @Test fun trimKeepsUserTurnFirst() = runTest {
@@ -117,7 +117,7 @@ class AgentTest {
         val agent = Agent(llm, FakeHost(), maxHistory = 10)
         repeat(20) { agent.respond("go $it", { "sys" }, JSONArray(), { true }) }
         assertTrue(agent.historySize <= 10)
-        assertTrue(Content.isUserText(llm.seen.last().first()))
+        assertTrue(llm.seen.last().first() is Msg.User)
     }
 
     @Test fun seedSkipsLeadingAssistantTurns() {

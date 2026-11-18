@@ -48,6 +48,7 @@ class PhoneTools(
     private val settings: Settings,
     private val memory: MemoryStore,
     private val link: SparkLink,
+    private val n8n: com.spark.companion.brain.N8n,
     private val uiVisible: () -> Boolean,
 ) : ToolHost {
 
@@ -86,10 +87,12 @@ class PhoneTools(
             "set_flashlight" -> "Switching the flashlight"
             "open_settings" -> "Opening settings"
             "device_status" -> "Checking the phone"
+            "open_camera" -> "Opening the camera"
             "read_notifications" -> "Reading notifications"
             "remember" -> "Remembering that"
             "forget" -> "Forgetting that"
             "ask_desktop_spark" -> "Asking SPARK on your computer"
+            "trigger_workflow" -> "Running your workflow"
             else -> "Working"
         }
     }
@@ -169,6 +172,7 @@ class PhoneTools(
                 "set_flashlight" -> setFlashlight(a.optBoolean("on", true))
                 "open_settings" -> openSettings(a.optString("page", "main"))
                 "device_status" -> deviceStatus()
+                "open_camera" -> openCamera()
                 "read_notifications" -> readNotifications(a.optInt("limit", 10))
                 "remember" -> {
                     val saved = withContext(Dispatchers.IO) { memory.remember(a.optString("fact")) }
@@ -179,6 +183,7 @@ class PhoneTools(
                     ok().put("forgotten", JSONArray(removed))
                 }
                 "ask_desktop_spark" -> link.ask(a.optString("request"))
+                "trigger_workflow" -> n8n.trigger(a.optString("workflow"), a.optString("input"))
                 else -> fail("Unknown tool: ${call.name}")
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -598,6 +603,12 @@ class PhoneTools(
         }
         val result = launch(Intent(action))
         return if (result.optBoolean("ok")) result else launch(Intent(SystemSettings.ACTION_SETTINGS))
+    }
+
+    private fun openCamera(): JSONObject {
+        return launch(
+            Intent(context, com.spark.companion.ui.VisionActivity::class.java)
+        ).put("note", "The camera is open. The user can point it and ask what they want to know.")
     }
 
     private fun deviceStatus(): JSONObject {

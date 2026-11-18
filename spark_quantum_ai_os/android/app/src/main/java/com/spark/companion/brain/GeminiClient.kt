@@ -5,25 +5,17 @@ import org.json.JSONException
 import org.json.JSONObject
 
 /**
- * Minimal client for the Gemini `generateContent` REST endpoint with function
- * calling. Uses only HttpURLConnection + org.json so it has no dependencies.
+ * Client for the Gemini `generateContent` REST endpoint with function calling.
+ * Serialises the neutral [Msg] history into Gemini's wire format.
  */
 class GeminiClient(
     private val apiKey: () -> String,
     private val model: () -> String,
 ) : Llm {
 
-    override suspend fun generate(
-        system: String,
-        history: List<JSONObject>,
-        tools: JSONArray,
-    ): LlmReply {
-        val key = apiKey().trim()
-        if (key.isEmpty()) {
-            throw LlmException("No Gemini API key yet. Add one in Spark settings.")
-        }
+    override suspend fun generate(system: String, history: List<Msg>, tools: JSONArray): LlmReply {
         val body = buildRequest(system, history, tools).toString()
-        val reply = GeminiHttp.post(endpoint(model()), key, body)
+        val reply = GeminiHttp.post(endpoint(model()), apiKey().trim(), body)
         return parseResponse(reply.toString())
     }
 
@@ -32,14 +24,50 @@ class GeminiClient(
 
         fun endpoint(model: String): String = GeminiHttp.endpoint(model, DEFAULT_MODEL)
 
-        fun buildRequest(system: String, history: List<JSONObject>, tools: JSONArray): JSONObject {
+        private fun userContent(text: String) = JSONObject()
+            .put("role", "user")
+            .put("parts", JSONArray().put(JSONObject().put("text", text)))
+
+        private fun assistantContent(m: Msg.Assistant): JSONObject {
+            m.raw?.let { return it }
+            val parts = JSONArray()
+            if (m.text.isNotBlank()) parts.put(JSONObject().put("text", m.text))
+            for (call in m.calls) {
+                parts.put(JSONObject().put("functionCall", JSONObject().put("name", call.name).put("args", call.args)))
+            }
+            if (parts.length() == 0) parts.put(JSONObject().put("text", ""))
+            return JSONObject().put("role", "model").put("parts", parts)
+        }
+
+        private fun toolContent(m: Msg.ToolResults): JSONObject {
+            val parts = JSONArray()
+            for (r in m.results) {
+                parts.put(
+                    JSONObject().put(
+                        "functionResponse",
+                        JSONObject().put("name", r.name).put("response", r.result)
+                    )
+                )
+            }
+            return JSONObject().put("role", "user").put("parts", parts)
+        }
+
+        fun buildRequest(system: String, history: List<Msg>, tools: JSONArray): JSONObject {
             val request = JSONObject()
             request.put(
                 "systemInstruction",
                 JSONObject().put("parts", JSONArray().put(JSONObject().put("text", system)))
             )
             val contents = JSONArray()
-            history.forEach { contents.put(it) }
+            for (m in history) {
+                contents.put(
+                    when (m) {
+                        is Msg.User -> userContent(m.text)
+                        is Msg.Assistant -> assistantContent(m)
+                        is Msg.ToolResults -> toolContent(m)
+                    }
+                )
+            }
             request.put("contents", contents)
             if (tools.length() > 0) {
                 request.put("tools", JSONArray().put(JSONObject().put("functionDeclarations", tools)))
@@ -92,7 +120,8 @@ class GeminiClient(
                     }
                 )
             }
-            return LlmReply(content, text.toString().trim(), calls)
+            val clean = text.toString().trim()
+            return LlmReply(Msg.Assistant(clean, calls, content), clean, calls)
         }
 
         fun errorMessage(code: Int, body: String): String = GeminiHttp.errorMessage(code, body)

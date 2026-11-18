@@ -163,16 +163,62 @@ class SettingsActivity : Activity() {
 
         section(
             "BRAIN",
-            "Spark thinks with Google's Gemini. Create a free key at aistudio.google.com/apikey and paste it here. " +
-                "It is stored encrypted on this phone and sent only to Google."
+            "Who does Spark think with? All three have free tiers. Keys are stored encrypted on this phone."
         )
+        val brains = android.widget.RadioGroup(this).apply { orientation = android.widget.RadioGroup.VERTICAL }
+        for ((key, label) in com.spark.companion.brain.RoutingLlm.PROVIDERS) {
+            brains.addView(android.widget.RadioButton(this).apply {
+                id = View.generateViewId()
+                text = label
+                setTextColor(Ui.TEXT)
+                textSize = 15.5f
+                isChecked = settings.chatProvider == key
+                setOnCheckedChangeListener { _, checked -> if (checked) settings.chatProvider = key }
+            })
+        }
+        content.addView(brains)
+
+        note("Google Gemini — free key at aistudio.google.com/apikey. Also used for avatar images and natural voices.")
         field("Gemini API key", settings.apiKey, "AIza…", secret = true) { settings.apiKey = it }
-        field("Model", settings.model, "gemini-2.5-flash") { settings.model = it }
-        action("Test Gemini connection") {
+        field("Gemini model", settings.model, "gemini-2.5-flash") { settings.model = it }
+
+        note("Groq — free key at console.groq.com/keys. Very fast; good for phone control.")
+        field("Groq API key", settings.groqApiKey, "gsk_…", secret = true) { settings.groqApiKey = it }
+        field("Groq model", settings.groqModel, com.spark.companion.brain.OpenAiCompatClient.DEFAULT_GROQ_MODEL) { settings.groqModel = it }
+
+        note("OpenRouter — free key at openrouter.ai/keys. Pick a model ending in “:free”. Not every free model can control the phone.")
+        field("OpenRouter API key", settings.openRouterApiKey, "sk-or-…", secret = true) { settings.openRouterApiKey = it }
+        field("OpenRouter model", settings.openRouterModel, com.spark.companion.brain.OpenAiCompatClient.DEFAULT_OPENROUTER_MODEL) { settings.openRouterModel = it }
+
+        note("Ollama — your own models on your PC/home server, free and private. Run Ollama and enter its address. Use a tool-capable model (llama3.1, qwen2.5) if you want Spark to operate the phone. Same Wi-Fi.")
+        field("Ollama server", settings.ollamaUrl, "http://192.168.1.20:11434") { settings.ollamaUrl = it }
+        field("Ollama model", settings.ollamaModel, com.spark.companion.brain.OpenAiCompatClient.DEFAULT_OLLAMA_MODEL) { settings.ollamaModel = it }
+
+        note("Custom — any OpenAI-compatible server (LM Studio, vLLM, LocalAI, or your own fine-tuned model). Enter its base URL, a key if it needs one, and the model name.")
+        field("Server base URL", settings.customUrl, "http://192.168.1.20:1234") { settings.customUrl = it }
+        field("API key (if needed)", settings.customApiKey, "optional", secret = true) { settings.customApiKey = it }
+        field("Model name", settings.customModel, "your-model") { settings.customModel = it }
+
+        action("Test the selected brain") {
             save()
             toast("Testing…")
             scope.launch { toast(engine.testGemini()) }
         }
+
+        section("AVATAR IMAGES", "How AI makes avatars from a description. Pollinations is free with no key or quota.")
+        val imageProviders = android.widget.RadioGroup(this).apply { orientation = android.widget.RadioGroup.VERTICAL }
+        for ((key, label) in listOf("pollinations" to "Pollinations (free, no key)", "gemini" to "Gemini (free-tier quota)")) {
+            imageProviders.addView(android.widget.RadioButton(this).apply {
+                id = View.generateViewId()
+                text = label
+                setTextColor(Ui.TEXT)
+                textSize = 15.5f
+                isChecked = settings.imageProvider == key
+                setOnCheckedChangeListener { _, checked -> if (checked) settings.imageProvider = key }
+            })
+        }
+        content.addView(imageProviders)
+        note("Restyling one of your own photos always uses Gemini (the free image maker can only create from a description).")
 
         section("AVATAR", "Pick who Spark appears as, or create your own from a photo or a description.")
         action("Open Avatar Studio", Ui.ACCENT, Ui.BG) {
@@ -240,6 +286,11 @@ class SettingsActivity : Activity() {
             settings.floatingAvatar
         ) { settings.floatingAvatar = it }
         toggle(
+            "Proactive heads-up",
+            "When a new message or notification arrives, Spark speaks a short summary (only when it's free and not already talking).",
+            settings.proactiveEnabled
+        ) { settings.proactiveEnabled = it }
+        toggle(
             "Wake word",
             "Always listen for the wake word, so saying it wakes the avatar from any screen. Uses some battery. On Android 12+ the phone's offline recogniser is used, which usually stays silent; older phones may beep each time listening restarts.",
             settings.wakeWordEnabled
@@ -288,6 +339,20 @@ class SettingsActivity : Activity() {
         field("Image model (avatar creation)", settings.imageModel, com.spark.companion.brain.GeminiMedia.DEFAULT_IMAGE_MODEL) { settings.imageModel = it }
         field("Voice model (natural voices)", settings.ttsModel, com.spark.companion.brain.GeminiMedia.DEFAULT_TTS_MODEL) { settings.ttsModel = it }
 
+        section(
+            "n8n WORKFLOWS",
+            "Let Spark run your n8n automations. Enter your n8n webhook address; Spark can then trigger workflows by name (and routines can too). Use on your own network."
+        )
+        field("n8n webhook URL", settings.n8nUrl, "http://192.168.1.20:5678") { settings.n8nUrl = it }
+        field("Auth header (optional)", settings.n8nAuth, "Header-Name: value, or a token", secret = true) { settings.n8nAuth = it }
+
+        section("MORE", "Spark's camera, and automations that run on their own.")
+        action("Open Spark Vision (camera)") { startActivity(Intent(this, VisionActivity::class.java)) }
+        action("Open Routines") { startActivity(Intent(this, RoutinesActivity::class.java)) }
+        action("Add the quick tile / widget") {
+            toast("Add Spark's tile from the quick-settings edit screen, and its widget by long-pressing the home screen.")
+        }
+
         section("MEMORY", "Everything Spark remembers stays in a private database on this phone.")
         action("Forget everything Spark knows about me", Ui.SURFACE_HI, Ui.DANGER) {
             AlertDialog.Builder(this)
@@ -317,7 +382,7 @@ class SettingsActivity : Activity() {
         permissionRow("Microphone", "So Spark can hear you", has(Manifest.permission.RECORD_AUDIO)) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 1)
         }
-        permissionRow(
+        if (com.spark.companion.BuildConfig.FULL_FEATURES) permissionRow(
             "Phone control", "Read the screen and tap, type and scroll in other apps (Accessibility)",
             SparkAccessibilityService.instance != null
         ) { open(SystemSettings.ACTION_ACCESSIBILITY_SETTINGS) }
@@ -337,7 +402,7 @@ class SettingsActivity : Activity() {
         permissionRow("Phone calls", "Place calls for you (after you confirm)", has(Manifest.permission.CALL_PHONE)) {
             requestPermissions(arrayOf(Manifest.permission.CALL_PHONE), 1)
         }
-        permissionRow("SMS", "Send texts for you (after you confirm)", has(Manifest.permission.SEND_SMS)) {
+        if (com.spark.companion.BuildConfig.FULL_FEATURES) permissionRow("SMS", "Send texts for you (after you confirm)", has(Manifest.permission.SEND_SMS)) {
             requestPermissions(arrayOf(Manifest.permission.SEND_SMS), 1)
         }
         if (Build.VERSION.SDK_INT >= 33) {
