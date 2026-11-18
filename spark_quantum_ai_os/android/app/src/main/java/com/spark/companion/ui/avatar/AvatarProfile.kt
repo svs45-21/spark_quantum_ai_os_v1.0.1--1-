@@ -110,6 +110,12 @@ class AvatarRepository(context: Context) {
         else -> null
     }
 
+    /** True when the avatar should look real but has no realistic picture of its current outfit yet. */
+    fun needsRealBody(profile: AvatarProfile): Boolean {
+        val b = profile.body ?: return false
+        return b.realistic && (profile.realBody?.exists() != true || profile.realOutfit != b.outfitId)
+    }
+
     /** Saves a realistic body picture for an avatar and returns the updated profile. */
     fun saveRealBody(profile: AvatarProfile, result: RealBody.Result, swap: Boolean, outfitId: String): AvatarProfile {
         val (png, json) = realFiles(profile) ?: return profile

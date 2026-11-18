@@ -15,10 +15,21 @@ class GeminiClient(
 ) : Llm {
     private val models = ModelSwitch({ model().trim().removePrefix("models/").ifEmpty { DEFAULT_MODEL } }, onModelSwitch)
 
+    @Volatile private var cache: Pair<Long, List<ModelCatalog.ModelInfo>>? = null
+
+    /** The key's models, remembered for an hour. */
+    private suspend fun listed(key: String): List<ModelCatalog.ModelInfo> {
+        cache?.takeIf { System.currentTimeMillis() - it.first < 3_600_000 }?.let { return it.second }
+        return ModelCatalog.listGemini(key).also { cache = System.currentTimeMillis() to it }
+    }
+
     override suspend fun generate(system: String, history: List<Msg>, tools: JSONArray): LlmReply {
         val body = buildRequest(system, history, tools).toString()
         val key = apiKey().trim()
-        val reply = models.run({ ModelCatalog.pickGeminiChat(ModelCatalog.listGemini(key)) }) { m ->
+        val reply = models.run(
+            discover = { ModelCatalog.pickGeminiChat(listed(key)) },
+            alternatives = { ModelCatalog.geminiChatModels(listed(key)) },
+        ) { m ->
             GeminiHttp.post(endpoint(m), key, body)
         }
         return parseResponse(reply.toString())

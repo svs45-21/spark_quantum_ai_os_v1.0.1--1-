@@ -40,8 +40,12 @@ object RealBody {
             "the whole body visible from the top of the head to the feet with some space above and below, " +
             "arms relaxed at the sides, shoulders level, friendly calm expression, eyes open looking at the camera, mouth closed. " +
             "Wearing ${describe(spec.outfit)}. " +
-            "$BACKDROP, soft even front lighting, no strong shadows on the backdrop, sharp focus, natural skin texture, " +
-            "realistic human proportions, 85mm lens, portrait orientation. No text, no logos, no other people, no props."
+            "$BACKDROP, soft even front lighting, no strong shadows on the backdrop. " +
+            "A real human being photographed with a DSLR camera: natural skin with pores and subtle imperfections, " +
+            "real hair with fine individual strands and natural flyaways, realistic fabric folds and texture, " +
+            "realistic human proportions, sharp focus, 85mm lens, portrait orientation. " +
+            "Not a cartoon, not an illustration, not anime, not 3D render, not CGI, not a doll, not a mannequin. " +
+            "No text, no logos, no watermark, no other people, no props."
     }
 
     /** A plain-English description of an outfit for the image model. */

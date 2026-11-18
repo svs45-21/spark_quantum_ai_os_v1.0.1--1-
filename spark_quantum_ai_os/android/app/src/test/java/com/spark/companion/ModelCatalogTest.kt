@@ -87,7 +87,7 @@ class ModelCatalogTest {
     @Test fun switchRetriesWithDiscoveredModelAndSaves() = runBlocking {
         var saved = ""
         val tried = ArrayList<String>()
-        val sw = ModelSwitch({ "old-model" }) { saved = it }
+        val sw = ModelSwitch({ "old-model" }, onSwitch = { saved = it })
         val out = sw.run({ "new-model" }) { m ->
             tried += m
             if (m == "old-model") throw ModelUnavailableException("gone") else "ok:$m"

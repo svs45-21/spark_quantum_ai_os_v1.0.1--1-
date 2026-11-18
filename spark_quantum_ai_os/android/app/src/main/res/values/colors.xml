@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="spark_bg">#070B14</color>
-    <color name="spark_accent">#00D4FF</color>
-    <color name="spark_text">#E8EEF7</color>
+    <color name="spark_bg">#1A1040</color>
+    <color name="spark_accent">#FF5FA2</color>
+    <color name="spark_text">#FFFFFF</color>
 </resources>

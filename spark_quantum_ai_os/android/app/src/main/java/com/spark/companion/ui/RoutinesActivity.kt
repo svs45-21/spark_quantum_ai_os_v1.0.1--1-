@@ -35,7 +35,7 @@ class RoutinesActivity : Activity() {
             setPadding(pad, pad, pad, Ui.dp(this@RoutinesActivity, 48))
         }
         setContentView(ScrollView(this).apply {
-            setBackgroundColor(Ui.BG)
+            background = Ui.backdrop()
             fitsSystemWindows = true
             addView(content)
         })

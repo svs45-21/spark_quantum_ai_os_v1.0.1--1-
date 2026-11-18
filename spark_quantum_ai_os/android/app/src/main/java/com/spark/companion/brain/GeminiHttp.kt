@@ -35,9 +35,9 @@ object GeminiHttp {
                     throw LlmException("Gemini sent a reply I couldn't read.", e)
                 }
             } catch (e: Transient) {
-                last = LlmException(e.message ?: "Temporary problem reaching Gemini.", e)
+                last = ProviderBusyException(e.message ?: "Temporary problem reaching Gemini.", e)
                 // Rate limits need a longer pause than a server blip.
-                if (attempt == 0) delay(if (e.rateLimited) 6000 else 1500)
+                if (attempt == 0) delay(if (e.rateLimited) 2500 else 1200)
             } catch (e: IOException) {
                 last = LlmException("I can't reach the internet right now.", e)
                 if (attempt == 0) delay(1000)

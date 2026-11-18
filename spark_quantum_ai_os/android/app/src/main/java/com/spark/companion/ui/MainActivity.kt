@@ -37,6 +37,7 @@ class MainActivity : Activity() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private lateinit var avatar: AvatarView
+    private lateinit var lookChip: android.widget.TextView
     private lateinit var status: TextView
     private lateinit var wakeChip: TextView
     private lateinit var styleRow: LinearLayout
@@ -140,6 +141,14 @@ class MainActivity : Activity() {
         scope.launch { engine.level.collect { avatar.level = it } }
         scope.launch { engine.mood.collect { avatar.mood = it } }
         scope.launch { engine.mouth.collect { avatar.mouthShape = it } }
+        scope.launch {
+            engine.lookStatus.collect { s ->
+                lookChip.text = s
+                lookChip.visibility = if (s.isEmpty()) View.GONE else View.VISIBLE
+                // A drawn stand-in stays faint until the realistic look is ready.
+                avatar.alpha = if (s.isEmpty()) 1f else 0.45f
+            }
+        }
         scope.launch {
             engine.avatar.collect { profile ->
                 avatar.profile = profile
@@ -262,7 +271,7 @@ class MainActivity : Activity() {
         val pad = Ui.dp(this, 16)
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(Ui.BG_TOP, Ui.BG))
+            background = Ui.backdrop()
             fitsSystemWindows = true
         }
 
@@ -306,6 +315,17 @@ class MainActivity : Activity() {
         // Tall enough for a full-body avatar standing in open space.
         val avatarHeight = maxOf(Ui.dp(this, 250), (resources.displayMetrics.heightPixels * 0.44f).toInt())
         root.addView(avatar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, avatarHeight))
+        lookChip = Ui.text(this, "", 13.5f, Ui.TEXT, bold = true).apply {
+            gravity = Gravity.CENTER
+            background = Ui.rounded(Ui.SURFACE_HI, Ui.dp(this@MainActivity, 14).toFloat(), Ui.ACCENT, Ui.dp(this@MainActivity, 1))
+            setPadding(Ui.dp(this@MainActivity, 14), Ui.dp(this@MainActivity, 8), Ui.dp(this@MainActivity, 14), Ui.dp(this@MainActivity, 8))
+            visibility = View.GONE
+            setOnClickListener { engine.ensureRealisticLook(force = true) }
+        }
+        root.addView(lookChip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            gravity = Gravity.CENTER_HORIZONTAL
+            setMargins(pad, Ui.dp(this@MainActivity, 4), pad, Ui.dp(this@MainActivity, 4))
+        })
 
         // Character picker and wake-word switch.
         styleRow = LinearLayout(this).apply {

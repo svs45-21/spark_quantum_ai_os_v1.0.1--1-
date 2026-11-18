@@ -95,7 +95,7 @@ class AvatarStudioActivity : Activity() {
             setPadding(pad, pad, pad, Ui.dp(this@AvatarStudioActivity, 48))
         }
         setContentView(ScrollView(this).apply {
-            setBackgroundColor(Ui.BG)
+            background = Ui.backdrop()
             fitsSystemWindows = true
             addView(content)
         })
@@ -648,8 +648,8 @@ class AvatarStudioActivity : Activity() {
         content.addView(preview, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 340)))
         if (start.realistic) {
             if (currentReal == null) {
-                note("This is a drawn preview. Create the realistic photo of this outfit: a real-looking person, head to toe" +
-                    (if (faceBitmap != null) ", with your face" else "") + ". Free, takes about 20–40 seconds.")
+                note("This is only a rough drawn preview. Create the realistic photo now, or just save: the realistic person" +
+                    (if (faceBitmap != null) " with your face" else "") + " is made automatically (free, 20–40 seconds).")
                 button("Create realistic photo", primary = true) { makeReal(faceBitmap) }
             } else {
                 note("Realistic photo ready. Not quite right? Each try gives a new picture.")
@@ -783,10 +783,6 @@ class AvatarStudioActivity : Activity() {
                 return@button
             }
             val profile = outfitTarget ?: return@button
-            if (chosen.realistic && realFor(chosen) == null) {
-                toast("Create the realistic photo of this outfit first, or switch to Illustrated.")
-                return@button
-            }
             working("Saving…") {
                 var saved = withContext(Dispatchers.IO) { repo.saveBody(profile, chosen) }
                 val real = pendingReal
@@ -796,7 +792,8 @@ class AvatarStudioActivity : Activity() {
                 }
                 AvatarView.clearCache()
                 engine.refreshSettings()
-                toast("${saved.name} is wearing ${chosen.outfit.name}.")
+                toast(if (chosen.realistic && realFor(chosen) == null) "${saved.name} is getting dressed — the realistic photo is being made now."
+                    else "${saved.name} is wearing ${chosen.outfit.name}.")
                 show(Screen.HOME)
             }
         }

@@ -127,7 +127,7 @@ class VisionActivity : Activity() {
         val pad = Ui.dp(this, 16)
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Ui.BG)
+            background = Ui.backdrop()
             fitsSystemWindows = true
             setPadding(pad, pad, pad, pad)
         }

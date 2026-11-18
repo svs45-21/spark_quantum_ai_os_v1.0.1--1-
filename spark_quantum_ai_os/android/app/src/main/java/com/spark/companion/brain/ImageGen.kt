@@ -93,7 +93,7 @@ class PollinationsImageGen(
         fun url(prompt: String, seed: Int = Random.nextInt(1, 1_000_000), width: Int = WIDTH, height: Int = HEIGHT): String {
             val enc = URLEncoder.encode(prompt.take(1500), "UTF-8").replace("+", "%20")
             return "https://image.pollinations.ai/prompt/$enc" +
-                "?width=$width&height=$height&nologo=true&model=flux&seed=$seed"
+                "?width=$width&height=$height&nologo=true&model=flux&seed=$seed&private=true&referrer=spark-companion"
         }
 
         /** Full-length portrait pictures (9:16) for realistic bodies. */

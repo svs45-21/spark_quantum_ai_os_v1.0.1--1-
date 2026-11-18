@@ -32,8 +32,8 @@ object OpenAiHttp {
                     throw LlmException("$provider sent a reply I couldn't read.", e)
                 }
             } catch (e: Transient) {
-                last = LlmException(e.message ?: "Temporary problem reaching $provider.", e)
-                if (attempt == 0) delay(if (e.rateLimited) 6000 else 1500)
+                last = ProviderBusyException(e.message ?: "Temporary problem reaching $provider.", e)
+                if (attempt == 0) delay(if (e.rateLimited) 2500 else 1200)
             } catch (e: IOException) {
                 last = LlmException("I can't reach the internet right now.", e)
                 if (attempt == 0) delay(1000)
