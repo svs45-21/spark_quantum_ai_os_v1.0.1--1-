@@ -63,6 +63,9 @@ object GeminiHttp {
             val message = errorMessage(code, text)
             if (code == 429) throw Transient(message, rateLimited = true)
             if (code >= 500) throw Transient(message)
+            if (code == 404 || (code == 400 && ModelCatalog.looksLikeModelProblem(text))) {
+                throw ModelUnavailableException(message)
+            }
             throw LlmException(message)
         } finally {
             conn.disconnect()
@@ -81,7 +84,7 @@ object GeminiHttp {
                 "The Gemini API key doesn't look valid. Check it in Spark settings."
             else "Gemini rejected the request: $short"
             401, 403 -> "The Gemini API key was refused. Check it in Spark settings."
-            404 -> "Gemini doesn't know that model name. Check the model in Spark settings."
+            404 -> "Gemini doesn't offer that model any more. Spark will pick one that works."
             429 -> "Gemini's usage limit for now was hit. On the free plan, AI image and voice have a small quota. Wait a minute and try again, or use the photo as it is."
             else -> "Gemini had a problem ($code). $short".trim()
         }

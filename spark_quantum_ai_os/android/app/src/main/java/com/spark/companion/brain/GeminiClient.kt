@@ -10,17 +10,23 @@ import org.json.JSONObject
  */
 class GeminiClient(
     private val apiKey: () -> String,
-    private val model: () -> String,
+    model: () -> String,
+    onModelSwitch: (String) -> Unit = {},
 ) : Llm {
+    private val models = ModelSwitch({ model().trim().removePrefix("models/").ifEmpty { DEFAULT_MODEL } }, onModelSwitch)
 
     override suspend fun generate(system: String, history: List<Msg>, tools: JSONArray): LlmReply {
         val body = buildRequest(system, history, tools).toString()
-        val reply = GeminiHttp.post(endpoint(model()), apiKey().trim(), body)
+        val key = apiKey().trim()
+        val reply = models.run({ ModelCatalog.pickGeminiChat(ModelCatalog.listGemini(key)) }) { m ->
+            GeminiHttp.post(endpoint(m), key, body)
+        }
         return parseResponse(reply.toString())
     }
 
     companion object {
-        const val DEFAULT_MODEL = "gemini-2.5-flash"
+        /** Rolling alias for the current Flash model, so it survives model retirements. */
+        const val DEFAULT_MODEL = "gemini-flash-latest"
 
         fun endpoint(model: String): String = GeminiHttp.endpoint(model, DEFAULT_MODEL)
 

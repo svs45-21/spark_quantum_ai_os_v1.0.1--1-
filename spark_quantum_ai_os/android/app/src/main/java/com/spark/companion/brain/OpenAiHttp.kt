@@ -60,6 +60,9 @@ object OpenAiHttp {
             val message = errorMessage(code, text, provider)
             if (code == 429) throw Transient(message, rateLimited = true)
             if (code >= 500) throw Transient(message)
+            if (code == 404 || (code in 400..422 && ModelCatalog.looksLikeModelProblem(text))) {
+                throw ModelUnavailableException(message)
+            }
             throw LlmException(message)
         } finally {
             conn.disconnect()
@@ -75,7 +78,7 @@ object OpenAiHttp {
         val short = detail.lineSequence().firstOrNull().orEmpty().take(200)
         return when (code) {
             401, 403 -> "The $provider API key was refused. Check it in Spark settings."
-            404 -> "$provider doesn't know that model name. Check the model in Spark settings."
+            404 -> "$provider doesn't offer that model any more, or it can't control the phone. Spark will pick one that works."
             429 -> "$provider's rate limit was hit. Give me a moment and try again."
             else -> "$provider had a problem ($code). $short".trim()
         }

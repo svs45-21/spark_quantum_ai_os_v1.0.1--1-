@@ -35,6 +35,8 @@ class SettingsActivity : Activity() {
     private val engine get() = SparkApp.engine
     private val settings get() = engine.settings
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var modelRefresh: () -> Unit = {}
+    private var mediaModelRefresh: () -> Unit = {}
 
     private lateinit var content: LinearLayout
     private lateinit var permissionRows: LinearLayout
@@ -58,6 +60,13 @@ class SettingsActivity : Activity() {
     override fun onResume() {
         super.onResume()
         renderPermissions()
+        // Pull in newly released models when the lists are over an hour old.
+        engine.refreshModelListsIfStale(60L * 60 * 1000) {
+            if (!isDestroyed) {
+                modelRefresh()
+                dropdowns.forEach { d -> d.render() }
+            }
+        }
     }
 
     override fun onPause() {
@@ -153,6 +162,39 @@ class SettingsActivity : Activity() {
 
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_LONG).show()
 
+    private val dropdowns = ArrayList<ModelDropdown>()
+
+    /** A drop-down of the provider's current models; picking one saves it at once. */
+    private fun modelField(label: String, listKey: String, value: String, onSave: (String) -> Unit): ModelDropdown {
+        content.addView(Ui.text(this, label, 13.5f, Ui.TEXT_DIM).apply {
+            setPadding(0, Ui.dp(this@SettingsActivity, 10), 0, Ui.dp(this@SettingsActivity, 4))
+        })
+        val dropdown = ModelDropdown(this, label, listKey, value, engine.modelLists, { refreshModels(false) }) {
+            onSave(it)
+            engine.refreshSettings()
+        }
+        content.addView(dropdown.view)
+        savers.add { onSave(dropdown.value) }
+        dropdowns.add(dropdown)
+        return dropdown
+    }
+
+    private fun refreshModels(pickBest: Boolean) {
+        save()
+        toast("Checking what each provider offers…")
+        scope.launch {
+            val result = engine.refreshModelLists(pickBest)
+            modelRefresh()
+            dropdowns.forEach { it.render() }
+            engine.refreshSettings()
+            AlertDialog.Builder(this@SettingsActivity)
+                .setTitle(if (result.added.isEmpty()) "Model lists updated" else "New models found")
+                .setMessage(result.summary)
+                .setPositiveButton("OK", null)
+                .show()
+        }
+    }
+
     // ── Screen ───────────────────────────────────────────────────────────
 
     private fun build() {
@@ -180,29 +222,48 @@ class SettingsActivity : Activity() {
 
         note("Google Gemini — free key at aistudio.google.com/apikey. Also used for avatar images and natural voices.")
         field("Gemini API key", settings.apiKey, "AIza…", secret = true) { settings.apiKey = it }
-        field("Gemini model", settings.model, "gemini-2.5-flash") { settings.model = it }
+        val geminiModel = modelField("Gemini model", com.spark.companion.core.ModelListStore.GEMINI_CHAT, settings.model) { settings.model = it }
 
         note("Groq — free key at console.groq.com/keys. Very fast; good for phone control.")
         field("Groq API key", settings.groqApiKey, "gsk_…", secret = true) { settings.groqApiKey = it }
-        field("Groq model", settings.groqModel, com.spark.companion.brain.OpenAiCompatClient.DEFAULT_GROQ_MODEL) { settings.groqModel = it }
+        val groqModel = modelField("Groq model", com.spark.companion.core.ModelListStore.GROQ, settings.groqModel) { settings.groqModel = it }
 
         note("OpenRouter — free key at openrouter.ai/keys. Pick a model ending in “:free”. Not every free model can control the phone.")
         field("OpenRouter API key", settings.openRouterApiKey, "sk-or-…", secret = true) { settings.openRouterApiKey = it }
-        field("OpenRouter model", settings.openRouterModel, com.spark.companion.brain.OpenAiCompatClient.DEFAULT_OPENROUTER_MODEL) { settings.openRouterModel = it }
+        val openRouterModel = modelField("OpenRouter model", com.spark.companion.core.ModelListStore.OPENROUTER, settings.openRouterModel) { settings.openRouterModel = it }
 
         note("Ollama — your own models on your PC/home server, free and private. Run Ollama and enter its address. Use a tool-capable model (llama3.1, qwen2.5) if you want Spark to operate the phone. Same Wi-Fi.")
         field("Ollama server", settings.ollamaUrl, "http://192.168.1.20:11434") { settings.ollamaUrl = it }
-        field("Ollama model", settings.ollamaModel, com.spark.companion.brain.OpenAiCompatClient.DEFAULT_OLLAMA_MODEL) { settings.ollamaModel = it }
+        val ollamaModel = modelField("Ollama model", com.spark.companion.core.ModelListStore.OLLAMA, settings.ollamaModel) { settings.ollamaModel = it }
 
         note("Custom — any OpenAI-compatible server (LM Studio, vLLM, LocalAI, or your own fine-tuned model). Enter its base URL, a key if it needs one, and the model name.")
         field("Server base URL", settings.customUrl, "http://192.168.1.20:1234") { settings.customUrl = it }
         field("API key (if needed)", settings.customApiKey, "optional", secret = true) { settings.customApiKey = it }
-        field("Model name", settings.customModel, "your-model") { settings.customModel = it }
+        val customModel = modelField("Model name", com.spark.companion.core.ModelListStore.CUSTOM, settings.customModel) { settings.customModel = it }
+
+        // Spark may swap a retired model for a working one; show the saved names
+        // so leaving this screen doesn't write the old ones back.
+        modelRefresh = {
+            geminiModel.set(settings.model)
+            groqModel.set(settings.groqModel)
+            openRouterModel.set(settings.openRouterModel)
+            ollamaModel.set(settings.ollamaModel)
+            customModel.set(settings.customModel)
+            mediaModelRefresh()
+        }
+
+        note("The model lists come from Gemini, Groq and OpenRouter themselves and refresh by themselves, so newly released models appear (marked NEW). If a model is retired, Spark switches to a working one.")
+        action("Refresh model lists") { refreshModels(pickBest = false) }
+        action("Pick the best model for each key") { refreshModels(pickBest = true) }
 
         action("Test the selected brain") {
             save()
             toast("Testing…")
-            scope.launch { toast(engine.testGemini()) }
+            scope.launch {
+                val result = engine.testGemini()
+                modelRefresh()
+                toast(result)
+            }
         }
 
         section("AVATAR IMAGES", "How AI makes avatars from a description. Pollinations is free with no key or quota.")
@@ -292,7 +353,7 @@ class SettingsActivity : Activity() {
         ) { settings.proactiveEnabled = it }
         toggle(
             "Wake word",
-            "Always listen for the wake word, so saying it wakes the avatar from any screen. Uses some battery. On Android 12+ the phone's offline recogniser is used, which usually stays silent; older phones may beep each time listening restarts.",
+            "Always listen for the wake word, so saying it wakes the avatar from any screen. Android shows its green mic dot the whole time this is on; that's its privacy indicator and can't be hidden. On Android 13+ the mic stays on steadily; on older phones it restarts between phrases and may blink or beep. Uses some battery.",
             settings.wakeWordEnabled
         ) { on ->
             settings.wakeWordEnabled = on
@@ -336,8 +397,12 @@ class SettingsActivity : Activity() {
         }
 
         section("ADVANCED", "Gemini model names, in case Google renames them.")
-        field("Image model (avatar creation)", settings.imageModel, com.spark.companion.brain.GeminiMedia.DEFAULT_IMAGE_MODEL) { settings.imageModel = it }
-        field("Voice model (natural voices)", settings.ttsModel, com.spark.companion.brain.GeminiMedia.DEFAULT_TTS_MODEL) { settings.ttsModel = it }
+        val imageModel = modelField("Image model (avatar creation)", com.spark.companion.core.ModelListStore.GEMINI_IMAGE, settings.imageModel) { settings.imageModel = it }
+        val ttsModel = modelField("Voice model (natural voices)", com.spark.companion.core.ModelListStore.GEMINI_TTS, settings.ttsModel) { settings.ttsModel = it }
+        mediaModelRefresh = {
+            imageModel.set(settings.imageModel)
+            ttsModel.set(settings.ttsModel)
+        }
 
         section(
             "n8n WORKFLOWS",

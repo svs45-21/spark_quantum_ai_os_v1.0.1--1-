@@ -189,6 +189,142 @@ class SpeechInput(private val context: Context) {
         }
     }
 
+    /** Outcome of one continuous wake-word session. */
+    sealed class WakeResult {
+        /** The wake word was heard; [command] is whatever followed it ("" if nothing). */
+        data class Heard(val command: String) : WakeResult()
+
+        /** The session ended without the wake word. */
+        data class Ended(val error: Int, val unsupported: Boolean) : WakeResult()
+    }
+
+    /**
+     * Listens for the wake word in ONE long session (Android 13+ "segmented
+     * session"), so the microphone stays on steadily instead of switching off
+     * and on after every pause. Returns as soon as the wake word is heard.
+     * If the recogniser doesn't support long sessions it ends at the first
+     * pause; the result then says [WakeResult.Ended.unsupported].
+     */
+    suspend fun listenForWakeWord(
+        language: String,
+        wakeWord: String,
+        onDevice: Boolean,
+        sessionMs: Int,
+        onStir: () -> Unit,
+    ): WakeResult = suspendCancellableCoroutine { cont ->
+        lastError = 0
+        val started = android.os.SystemClock.uptimeMillis()
+        val recognizer = try {
+            val component = recognizerComponent()
+            when {
+                onDevice && onDeviceAvailable && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
+                    SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
+                component != null -> SpeechRecognizer.createSpeechRecognizer(context, component)
+                else -> SpeechRecognizer.createSpeechRecognizer(context)
+            }
+        } catch (e: Exception) {
+            lastError = SpeechRecognizer.ERROR_CLIENT
+            cont.resume(WakeResult.Ended(SpeechRecognizer.ERROR_CLIENT, unsupported = true))
+            return@suspendCancellableCoroutine
+        }
+        var done = false
+        var stirred = false
+
+        fun finish(result: WakeResult) {
+            if (done) return
+            done = true
+            try {
+                recognizer.cancel()
+            } catch (e: Exception) {
+                // already stopped
+            }
+            try {
+                recognizer.destroy()
+            } catch (e: Exception) {
+                // already gone
+            }
+            if (cont.isActive) cont.resume(result)
+        }
+
+        fun elapsed() = android.os.SystemClock.uptimeMillis() - started
+
+        fun check(text: String?, final: Boolean) {
+            if (text.isNullOrBlank()) return
+            val command = com.spark.companion.brain.SpeechText.afterWakeWord(text, wakeWord) ?: return
+            if (!stirred) {
+                stirred = true
+                onStir()
+            }
+            if (final) finish(WakeResult.Heard(command))
+        }
+
+        recognizer.setRecognitionListener(object : RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {}
+            override fun onBeginningOfSpeech() {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {}
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+            override fun onRmsChanged(rmsdB: Float) {}
+
+            override fun onPartialResults(partialResults: Bundle?) = check(best(partialResults), final = false)
+
+            // A finished stretch of speech inside the long session.
+            override fun onSegmentResults(segmentResults: Bundle) = check(best(segmentResults), final = true)
+
+            override fun onEndOfSegmentedSession() {
+                finish(WakeResult.Ended(0, unsupported = false))
+            }
+
+            // Reached only when the recogniser ignored the long-session request.
+            override fun onResults(results: Bundle?) {
+                check(best(results), final = true)
+                finish(WakeResult.Ended(0, com.spark.companion.brain.SpeechText.continuousLooksUnsupported(elapsed())))
+            }
+
+            override fun onError(error: Int) {
+                lastError = error
+                val quiet = error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT
+                finish(WakeResult.Ended(error, quiet && com.spark.companion.brain.SpeechText.continuousLooksUnsupported(elapsed())))
+            }
+        })
+
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
+            if (language.isNotBlank()) putExtra(RecognizerIntent.EXTRA_LANGUAGE, language)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                putExtra(RecognizerIntent.EXTRA_SEGMENTED_SESSION, RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS)
+                putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, sessionMs)
+            }
+        }
+        try {
+            recognizer.startListening(intent)
+        } catch (e: Exception) {
+            lastError = SpeechRecognizer.ERROR_CLIENT
+            finish(WakeResult.Ended(SpeechRecognizer.ERROR_CLIENT, unsupported = true))
+        }
+
+        cont.invokeOnCancellation {
+            main.post {
+                if (!done) {
+                    done = true
+                    try {
+                        recognizer.cancel()
+                    } catch (e: Exception) {
+                        // ignore
+                    }
+                    try {
+                        recognizer.destroy()
+                    } catch (e: Exception) {
+                        // ignore
+                    }
+                }
+            }
+        }
+    }
+
     private fun best(bundle: Bundle?): String? =
         bundle?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
 

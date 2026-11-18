@@ -68,11 +68,15 @@ class SparkEngine(private val context: Context) {
     private val llm = RoutingLlm(
         provider = { settings.chatProvider },
         clients = mapOf(
-            RoutingLlm.GEMINI to GeminiClient({ settings.apiKey }, { settings.model }),
-            RoutingLlm.GROQ to OpenAiCompatClient.groq({ settings.groqApiKey }, { settings.groqModel }),
-            RoutingLlm.OPENROUTER to OpenAiCompatClient.openRouter({ settings.openRouterApiKey }, { settings.openRouterModel }),
-            RoutingLlm.OLLAMA to OpenAiCompatClient.ollama({ settings.ollamaUrl }, { settings.ollamaModel }),
-            RoutingLlm.CUSTOM to OpenAiCompatClient.custom({ settings.customUrl }, { settings.customApiKey }, { settings.customModel }),
+            RoutingLlm.GEMINI to GeminiClient({ settings.apiKey }, { settings.model }) { settings.model = it },
+            RoutingLlm.GROQ to OpenAiCompatClient.groq({ settings.groqApiKey }, { settings.groqModel })
+                .apply { onModelSwitch = { settings.groqModel = it } },
+            RoutingLlm.OPENROUTER to OpenAiCompatClient.openRouter({ settings.openRouterApiKey }, { settings.openRouterModel })
+                .apply { onModelSwitch = { settings.openRouterModel = it } },
+            RoutingLlm.OLLAMA to OpenAiCompatClient.ollama({ settings.ollamaUrl }, { settings.ollamaModel })
+                .apply { onModelSwitch = { settings.ollamaModel = it } },
+            RoutingLlm.CUSTOM to OpenAiCompatClient.custom({ settings.customUrl }, { settings.customApiKey }, { settings.customModel })
+                .apply { onModelSwitch = { settings.customModel = it } },
         ),
     )
     private val agent = Agent(llm, tools)
@@ -112,7 +116,7 @@ class SparkEngine(private val context: Context) {
     /** The avatar Spark currently appears as. */
     val avatar = MutableStateFlow(avatars.get(settings.avatar))
 
-    private val naturalVoice = NaturalVoice({ settings.apiKey }, { settings.ttsModel })
+    private val naturalVoice = NaturalVoice({ settings.apiKey }, { settings.ttsModel }) { settings.ttsModel = it }
 
     /** The language the conversation is in right now; listening follows it. */
     private var talkLanguage: String = settings.primaryLanguage
@@ -132,6 +136,9 @@ class SparkEngine(private val context: Context) {
     /** Falls back to the online recogniser if on-device recognition keeps failing. */
     private var wakeOnDevice = true
 
+    /** Use one long recognition session for the wake word; off if the phone can't. */
+    private var continuousWake = true
+
     val busy: Boolean get() = job?.isActive == true
 
     init {
@@ -148,6 +155,8 @@ class SparkEngine(private val context: Context) {
             _messages.value = recent
             agent.seed(recent.takeLast(12).map { it.fromUser to it.text })
             refreshSettings()
+            // Keeps model drop-downs current, so newly released models show up.
+            refreshModelListsIfStale()
         }
     }
 
@@ -246,6 +255,100 @@ suspend fun testGemini(): String = try {
         e.message ?: "Connection test failed."
     }
 
+    val modelLists = com.spark.companion.core.ModelListStore(context)
+
+    /** Result of a model-list refresh, for the settings screen. */
+    class ModelRefresh(val summary: String, val added: List<String>)
+
+    @Volatile private var refreshingModels = false
+
+    /**
+     * Asks every provider that has a key which models it offers right now and
+     * updates the drop-downs. New models are remembered so they can be marked
+     * NEW. A saved model the provider no longer offers is swapped for the best
+     * available one; with [pickBest], every provider gets its best model.
+     */
+    suspend fun refreshModelLists(pickBest: Boolean = false): ModelRefresh {
+        val cat = com.spark.companion.brain.ModelCatalog
+        val listing = com.spark.companion.brain.ModelListing
+        val store = com.spark.companion.core.ModelListStore
+        val lines = ArrayList<String>()
+        val added = ArrayList<String>()
+        val now = System.currentTimeMillis()
+
+        fun save(label: String, key: String, fresh: List<Pair<String, String>>, current: String, choose: (String) -> Unit) {
+            if (fresh.isEmpty()) {
+                lines += "$label: no models offered"
+                return
+            }
+            val merge = listing.merge(modelLists.get(key), fresh, now)
+            modelLists.put(key, merge.list)
+            added += merge.added.map { "$label: $it" }
+            val best = fresh.first().first
+            val note = when {
+                pickBest && current != best -> { choose(best); " → using $best" }
+                current.isNotBlank() && current !in merge.list.ids -> { choose(best); " → $current is gone, using $best" }
+                else -> ""
+            }
+            val fresher = if (merge.added.isNotEmpty()) ", ${merge.added.size} new" else ""
+            lines += "$label: ${fresh.size} models$fresher$note"
+        }
+
+        suspend fun guarded(label: String, block: suspend () -> Unit) {
+            try {
+                block()
+            } catch (e: LlmException) {
+                lines += "$label: ${e.message}"
+            }
+        }
+
+        if (settings.apiKey.isNotBlank()) guarded("Gemini") {
+            val all = cat.listGemini(settings.apiKey)
+            save("Gemini chat", store.GEMINI_CHAT, cat.geminiChatModels(all).map { it to "" }, settings.model) { settings.model = it }
+            save("Gemini voice", store.GEMINI_TTS, cat.geminiTtsModels(all).map { it to "" }, settings.ttsModel) { settings.ttsModel = it }
+            save("Gemini images", store.GEMINI_IMAGE, cat.geminiImageModels(all).map { it to "" }, settings.imageModel) { settings.imageModel = it }
+        }
+        if (settings.groqApiKey.isNotBlank()) guarded("Groq") {
+            val all = cat.groqModels(cat.listOpenAi(cat.GROQ_MODELS_URL, settings.groqApiKey, "Groq"))
+            save("Groq", store.GROQ, all.map { it.id to cat.tags(it) }, settings.groqModel) { settings.groqModel = it }
+        }
+        // OpenRouter lists its models without a key, so its drop-down works before one is added.
+        guarded("OpenRouter") {
+            val all = cat.openRouterModels(cat.listOpenAi(cat.OPENROUTER_MODELS_URL, settings.openRouterApiKey, "OpenRouter"))
+            val best = cat.pickOpenRouter(all)
+            val ordered = all.sortedBy { if (it.id == best) 0 else 1 }
+            save("OpenRouter", store.OPENROUTER, ordered.map { it.id to cat.tags(it) }, settings.openRouterModel) { settings.openRouterModel = it }
+        }
+        if (settings.ollamaUrl.isNotBlank()) guarded("Ollama") {
+            val url = cat.modelsUrlFor(OpenAiCompatClient.chatEndpoint(settings.ollamaUrl))
+            val all = cat.localModels(cat.listOpenAi(url, "", "Ollama"))
+            save("Ollama", store.OLLAMA, all.map { it.id to "" }, settings.ollamaModel) { settings.ollamaModel = it }
+        }
+        if (settings.customUrl.isNotBlank()) guarded("Your server") {
+            val url = cat.modelsUrlFor(OpenAiCompatClient.chatEndpoint(settings.customUrl))
+            val all = cat.localModels(cat.listOpenAi(url, settings.customApiKey, "Your server"))
+            save("Your server", store.CUSTOM, all.map { it.id to "" }, settings.customModel) { settings.customModel = it }
+        }
+        modelLists.lastRefresh = now
+        val head = if (added.isEmpty()) "" else "New models: ${added.take(6).joinToString(", ")}" +
+            (if (added.size > 6) " and ${added.size - 6} more" else "") + "\n"
+        return ModelRefresh(head + lines.joinToString("\n"), added)
+    }
+
+    /** Refreshes the model lists in the background when they are older than [maxAgeMs]. */
+    fun refreshModelListsIfStale(maxAgeMs: Long = 12L * 60 * 60 * 1000, onDone: (ModelRefresh) -> Unit = {}) {
+        if (refreshingModels) return
+        if (System.currentTimeMillis() - modelLists.lastRefresh < maxAgeMs) return
+        refreshingModels = true
+        scope.launch {
+            try {
+                onDone(refreshModelLists())
+            } finally {
+                refreshingModels = false
+            }
+        }
+    }
+
     suspend fun testDesktopLink(): Boolean = link.ping()
 
     @Volatile private var lastProactiveAt = 0L
@@ -301,6 +404,7 @@ suspend fun testGemini(): String = try {
     // ── Sessions ─────────────────────────────────────────────────────────
 
     private fun startSession(block: suspend () -> Unit) {
+        refreshModelListsIfStale()
         wakeJob?.cancel()
         wakeUp()
         val previous = job
@@ -467,6 +571,7 @@ suspend fun testGemini(): String = try {
      * still talking; the full sentence then becomes the first request.
      */
     private suspend fun wakeLoop() {
+        var silentRounds = 0
         while (scope.isActive && settings.wakeWordEnabled) {
             if (busy) {
                 delay(1000)
@@ -474,14 +579,39 @@ suspend fun testGemini(): String = try {
             }
             val onDevice = wakeOnDevice && speech.onDeviceAvailable
             var stirred = false
+            val stir = {
+                if (!stirred) {
+                    stirred = true
+                    if (!_awake.value) wakeUp()
+                }
+            }
+
+            // Android 13+: one long session keeps the mic on steadily instead of
+            // switching it off and on after every pause.
+            if (continuousWake && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                when (val r = speech.listenForWakeWord(settings.primaryLanguage, settings.wakeWord, onDevice, SpeechText.WAKE_SESSION_MS, stir)) {
+                    is SpeechInput.WakeResult.Heard -> {
+                        val wasAwake = _awake.value && !stirred
+                        startVoice(r.command.ifBlank { null }, greet = r.command.isBlank() && !wasAwake)
+                        return
+                    }
+                    is SpeechInput.WakeResult.Ended -> {
+                        if (stirred) scheduleSleep(4_000)
+                        if (r.unsupported) continuousWake = false
+                        if (onDevice && r.error != 0 && r.error !in QUIET_ERRORS) wakeOnDevice = false
+                        delay(if (r.error == 0 || r.error in QUIET_ERRORS) 300 else 2500)
+                        continue
+                    }
+                }
+            }
+
+            // Fallback for recognisers without long sessions: listen, restart,
+            // and back off while nobody is talking so the mic blinks less.
             val heard = speech.listen(
                 settings.primaryLanguage,
                 alsoAllowed = settings.languages,
                 onPartial = { partial ->
-                    if (!stirred && SpeechText.afterWakeWord(partial, settings.wakeWord) != null) {
-                        stirred = true
-                        if (!_awake.value) wakeUp()
-                    }
+                    if (SpeechText.afterWakeWord(partial, settings.wakeWord) != null) stir()
                 },
                 onDevice = onDevice,
             )
@@ -489,10 +619,15 @@ suspend fun testGemini(): String = try {
                 val error = speech.lastError
                 if (stirred) scheduleSleep(4_000)
                 if (onDevice && error !in QUIET_ERRORS) wakeOnDevice = false
-                // Silence is normal; real errors get a longer pause so we don't spin.
-                delay(if (error in QUIET_ERRORS) 150 else 2500)
+                if (error in QUIET_ERRORS) {
+                    silentRounds++
+                    delay(SpeechText.wakeRestartDelayMs(silentRounds))
+                } else {
+                    delay(2500)
+                }
                 continue
             }
+            silentRounds = 0
             val command = SpeechText.afterWakeWord(heard, settings.wakeWord)
             if (command == null) {
                 if (stirred) scheduleSleep(4_000)

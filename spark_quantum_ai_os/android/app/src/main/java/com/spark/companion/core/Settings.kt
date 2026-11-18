@@ -56,7 +56,7 @@ class Settings(context: Context) {
         set(value) = prefs.edit().putString("user_name", value.trim()).apply()
 
     var model: String
-        get() = prefs.getString("model", null)?.takeIf { it.isNotBlank() } ?: GeminiClient.DEFAULT_MODEL
+        get() = prefs.getString("model", null)?.takeIf { it.isNotBlank() && it !in com.spark.companion.brain.ModelCatalog.RETIRED } ?: GeminiClient.DEFAULT_MODEL
         set(value) = prefs.edit().putString("model", value.trim()).apply()
 
     /** Base URL of the SPARK server on the user's PC, e.g. http://192.168.1.20:8765 */
@@ -90,11 +90,11 @@ class Settings(context: Context) {
         set(value) = prefs.edit().putString("voice_engine", value).apply()
 
     var imageModel: String
-        get() = prefs.getString("image_model", null)?.takeIf { it.isNotBlank() } ?: GeminiMedia.DEFAULT_IMAGE_MODEL
+        get() = prefs.getString("image_model", null)?.takeIf { it.isNotBlank() && it !in com.spark.companion.brain.ModelCatalog.RETIRED } ?: GeminiMedia.DEFAULT_IMAGE_MODEL
         set(value) = prefs.edit().putString("image_model", value.trim()).apply()
 
     var ttsModel: String
-        get() = prefs.getString("tts_model", null)?.takeIf { it.isNotBlank() } ?: GeminiMedia.DEFAULT_TTS_MODEL
+        get() = prefs.getString("tts_model", null)?.takeIf { it.isNotBlank() && it !in com.spark.companion.brain.ModelCatalog.RETIRED } ?: GeminiMedia.DEFAULT_TTS_MODEL
         set(value) = prefs.edit().putString("tts_model", value.trim()).apply()
 
     /** Which brain answers: "gemini", "groq" or "openrouter". */
@@ -103,11 +103,11 @@ class Settings(context: Context) {
         set(value) = prefs.edit().putString("chat_provider", value).apply()
 
     var groqModel: String
-        get() = prefs.getString("groq_model", null)?.takeIf { it.isNotBlank() } ?: com.spark.companion.brain.OpenAiCompatClient.DEFAULT_GROQ_MODEL
+        get() = prefs.getString("groq_model", null)?.takeIf { it.isNotBlank() && it !in com.spark.companion.brain.ModelCatalog.RETIRED } ?: com.spark.companion.brain.OpenAiCompatClient.DEFAULT_GROQ_MODEL
         set(value) = prefs.edit().putString("groq_model", value.trim()).apply()
 
     var openRouterModel: String
-        get() = prefs.getString("openrouter_model", null)?.takeIf { it.isNotBlank() } ?: com.spark.companion.brain.OpenAiCompatClient.DEFAULT_OPENROUTER_MODEL
+        get() = prefs.getString("openrouter_model", null)?.takeIf { it.isNotBlank() && it !in com.spark.companion.brain.ModelCatalog.RETIRED } ?: com.spark.companion.brain.OpenAiCompatClient.DEFAULT_OPENROUTER_MODEL
         set(value) = prefs.edit().putString("openrouter_model", value.trim()).apply()
 
     /** Which image generator makes avatars: "gemini" or "pollinations" (free). */

@@ -6,6 +6,8 @@ import android.media.AudioTrack
 import com.spark.companion.brain.GeminiHttp
 import com.spark.companion.brain.GeminiMedia
 import com.spark.companion.brain.LlmException
+import com.spark.companion.brain.ModelSwitch
+import com.spark.companion.brain.ModelCatalog
 import com.spark.companion.brain.Mood
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -17,12 +19,20 @@ import kotlin.coroutines.coroutineContext
  * Gemini's natural, expressive voices. Audio comes back as raw PCM, so the
  * avatar's mouth follows the exact loudness of what is being played.
  */
-class NaturalVoice(private val apiKey: () -> String, private val model: () -> String) {
+class NaturalVoice(
+    private val apiKey: () -> String,
+    model: () -> String,
+    onModelSwitch: (String) -> Unit = {},
+) {
+    private val models = ModelSwitch({ model().trim().ifEmpty { GeminiMedia.DEFAULT_TTS_MODEL } }, onModelSwitch)
 
     @Throws(LlmException::class)
     suspend fun synthesize(text: String, voice: String, mood: Mood?): GeminiMedia.Pcm {
         val body = GeminiMedia.speechRequest(text, voice, mood).toString()
-        val reply = GeminiHttp.post(GeminiHttp.endpoint(model(), GeminiMedia.DEFAULT_TTS_MODEL), apiKey(), body, 120_000)
+        val key = apiKey().trim()
+        val reply = models.run({ ModelCatalog.pickGeminiTts(ModelCatalog.listGemini(key)) }) { m ->
+            GeminiHttp.post(GeminiHttp.endpoint(m, GeminiMedia.DEFAULT_TTS_MODEL), key, body, 120_000)
+        }
         return GeminiMedia.parseSpeech(reply)
     }
 
