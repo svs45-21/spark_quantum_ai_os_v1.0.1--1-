@@ -155,6 +155,8 @@ class SparkEngine(private val context: Context) {
             _messages.value = recent
             agent.seed(recent.takeLast(12).map { it.fromUser to it.text })
             refreshSettings()
+            // Keeps model drop-downs current, so newly released models show up.
+            refreshModelListsIfStale()
         }
     }
 
@@ -253,46 +255,98 @@ suspend fun testGemini(): String = try {
         e.message ?: "Connection test failed."
     }
 
+    val modelLists = com.spark.companion.core.ModelListStore(context)
+
+    /** Result of a model-list refresh, for the settings screen. */
+    class ModelRefresh(val summary: String, val added: List<String>)
+
+    @Volatile private var refreshingModels = false
+
     /**
-     * Asks every provider that has a key which models it offers right now, and
-     * saves a working choice for chat, voice and images. Returns a summary.
+     * Asks every provider that has a key which models it offers right now and
+     * updates the drop-downs. New models are remembered so they can be marked
+     * NEW. A saved model the provider no longer offers is swapped for the best
+     * available one; with [pickBest], every provider gets its best model.
      */
-    suspend fun findWorkingModels(): String {
-        val lines = ArrayList<String>()
-        suspend fun check(label: String, block: suspend () -> String?) {
-            lines += try {
-                val picked = block()
-                if (picked == null) "$label: no usable model found" else "$label: $picked"
-            } catch (e: LlmException) {
-                "$label: ${e.message}"
-            }
-        }
+    suspend fun refreshModelLists(pickBest: Boolean = false): ModelRefresh {
         val cat = com.spark.companion.brain.ModelCatalog
-        if (settings.apiKey.isNotBlank()) {
-            val all = try {
-                cat.listGemini(settings.apiKey)
+        val listing = com.spark.companion.brain.ModelListing
+        val store = com.spark.companion.core.ModelListStore
+        val lines = ArrayList<String>()
+        val added = ArrayList<String>()
+        val now = System.currentTimeMillis()
+
+        fun save(label: String, key: String, fresh: List<Pair<String, String>>, current: String, choose: (String) -> Unit) {
+            if (fresh.isEmpty()) {
+                lines += "$label: no models offered"
+                return
+            }
+            val merge = listing.merge(modelLists.get(key), fresh, now)
+            modelLists.put(key, merge.list)
+            added += merge.added.map { "$label: $it" }
+            val best = fresh.first().first
+            val note = when {
+                pickBest && current != best -> { choose(best); " → using $best" }
+                current.isNotBlank() && current !in merge.list.ids -> { choose(best); " → $current is gone, using $best" }
+                else -> ""
+            }
+            val fresher = if (merge.added.isNotEmpty()) ", ${merge.added.size} new" else ""
+            lines += "$label: ${fresh.size} models$fresher$note"
+        }
+
+        suspend fun guarded(label: String, block: suspend () -> Unit) {
+            try {
+                block()
             } catch (e: LlmException) {
-                lines += "Gemini: ${e.message}"
-                null
-            }
-            if (all != null) {
-                check("Gemini chat") { cat.pickGeminiChat(all)?.also { settings.model = it } }
-                check("Gemini voice") { cat.pickGeminiTts(all)?.also { settings.ttsModel = it } }
-                check("Gemini images") { cat.pickGeminiImage(all)?.also { settings.imageModel = it } }
+                lines += "$label: ${e.message}"
             }
         }
-        if (settings.groqApiKey.isNotBlank()) check("Groq") {
-            cat.pickGroq(cat.listOpenAi(cat.GROQ_MODELS_URL, settings.groqApiKey, "Groq"))?.also { settings.groqModel = it }
+
+        if (settings.apiKey.isNotBlank()) guarded("Gemini") {
+            val all = cat.listGemini(settings.apiKey)
+            save("Gemini chat", store.GEMINI_CHAT, cat.geminiChatModels(all).map { it to "" }, settings.model) { settings.model = it }
+            save("Gemini voice", store.GEMINI_TTS, cat.geminiTtsModels(all).map { it to "" }, settings.ttsModel) { settings.ttsModel = it }
+            save("Gemini images", store.GEMINI_IMAGE, cat.geminiImageModels(all).map { it to "" }, settings.imageModel) { settings.imageModel = it }
         }
-        if (settings.openRouterApiKey.isNotBlank()) check("OpenRouter") {
-            cat.pickOpenRouter(cat.listOpenAi(cat.OPENROUTER_MODELS_URL, settings.openRouterApiKey, "OpenRouter"))
-                ?.also { settings.openRouterModel = it }
+        if (settings.groqApiKey.isNotBlank()) guarded("Groq") {
+            val all = cat.groqModels(cat.listOpenAi(cat.GROQ_MODELS_URL, settings.groqApiKey, "Groq"))
+            save("Groq", store.GROQ, all.map { it.id to cat.tags(it) }, settings.groqModel) { settings.groqModel = it }
         }
-        if (settings.ollamaUrl.isNotBlank()) check("Ollama") {
+        // OpenRouter lists its models without a key, so its drop-down works before one is added.
+        guarded("OpenRouter") {
+            val all = cat.openRouterModels(cat.listOpenAi(cat.OPENROUTER_MODELS_URL, settings.openRouterApiKey, "OpenRouter"))
+            val best = cat.pickOpenRouter(all)
+            val ordered = all.sortedBy { if (it.id == best) 0 else 1 }
+            save("OpenRouter", store.OPENROUTER, ordered.map { it.id to cat.tags(it) }, settings.openRouterModel) { settings.openRouterModel = it }
+        }
+        if (settings.ollamaUrl.isNotBlank()) guarded("Ollama") {
             val url = cat.modelsUrlFor(OpenAiCompatClient.chatEndpoint(settings.ollamaUrl))
-            cat.pickLocal(cat.listOpenAi(url, "", "Ollama"))?.also { settings.ollamaModel = it }
+            val all = cat.localModels(cat.listOpenAi(url, "", "Ollama"))
+            save("Ollama", store.OLLAMA, all.map { it.id to "" }, settings.ollamaModel) { settings.ollamaModel = it }
         }
-        return if (lines.isEmpty()) "Add an API key first." else lines.joinToString("\n")
+        if (settings.customUrl.isNotBlank()) guarded("Your server") {
+            val url = cat.modelsUrlFor(OpenAiCompatClient.chatEndpoint(settings.customUrl))
+            val all = cat.localModels(cat.listOpenAi(url, settings.customApiKey, "Your server"))
+            save("Your server", store.CUSTOM, all.map { it.id to "" }, settings.customModel) { settings.customModel = it }
+        }
+        modelLists.lastRefresh = now
+        val head = if (added.isEmpty()) "" else "New models: ${added.take(6).joinToString(", ")}" +
+            (if (added.size > 6) " and ${added.size - 6} more" else "") + "\n"
+        return ModelRefresh(head + lines.joinToString("\n"), added)
+    }
+
+    /** Refreshes the model lists in the background when they are older than [maxAgeMs]. */
+    fun refreshModelListsIfStale(maxAgeMs: Long = 12L * 60 * 60 * 1000, onDone: (ModelRefresh) -> Unit = {}) {
+        if (refreshingModels) return
+        if (System.currentTimeMillis() - modelLists.lastRefresh < maxAgeMs) return
+        refreshingModels = true
+        scope.launch {
+            try {
+                onDone(refreshModelLists())
+            } finally {
+                refreshingModels = false
+            }
+        }
     }
 
     suspend fun testDesktopLink(): Boolean = link.ping()
@@ -350,6 +404,7 @@ suspend fun testGemini(): String = try {
     // ── Sessions ─────────────────────────────────────────────────────────
 
     private fun startSession(block: suspend () -> Unit) {
+        refreshModelListsIfStale()
         wakeJob?.cancel()
         wakeUp()
         val previous = job

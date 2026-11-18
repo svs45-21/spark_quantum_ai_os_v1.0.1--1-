@@ -110,3 +110,50 @@ class ModelCatalogTest {
         assertFalse(com.spark.companion.brain.GeminiClient.DEFAULT_MODEL in ModelCatalog.RETIRED)
     }
 }
+
+class ModelListingTest {
+    private val day = 24L * 60 * 60 * 1000
+
+    @Test fun firstFetchMarksNothingNew() {
+        val m = com.spark.companion.brain.ModelListing.merge(null, listOf("a" to "", "b" to ""), 1000L)
+        assertTrue(m.added.isEmpty())
+        assertFalse(m.list.entries.any { com.spark.companion.brain.ModelListing.isNew(it, 1000L) })
+    }
+
+    @Test fun laterFetchFlagsAddedAndRemovedModels() {
+        val L = com.spark.companion.brain.ModelListing
+        val first = L.merge(null, listOf("a" to "", "b" to ""), 0L).list
+        val second = L.merge(first, listOf("c" to "free", "a" to ""), day)
+        assertEquals(listOf("c"), second.added)
+        assertEquals(listOf("b"), second.removed)
+        assertEquals(listOf("c", "a"), second.list.ids)
+        val c = second.list.entries.first()
+        assertTrue(L.isNew(c, day + 1))
+        assertFalse(L.isNew(c, day + L.NEW_FOR_MS + 1))
+        // Still remembered as first seen on day one after another refresh.
+        val third = L.merge(second.list, listOf("a" to "", "c" to "free"), 3 * day)
+        assertTrue(third.added.isEmpty())
+        assertEquals(day, third.list.entries.first { it.id == "c" }.firstSeen)
+    }
+
+    @Test fun jsonRoundTrip() {
+        val L = com.spark.companion.brain.ModelListing
+        val list = L.merge(null, listOf("x/y:free" to "free · phone control"), 5L).list
+        assertEquals(list, L.fromJson(L.toJson(list)))
+        assertNull(L.fromJson("not json"))
+    }
+
+    @Test fun dropdownOrdersShowEveryModelBestFirst() {
+        val or = ModelCatalog.openRouterModels(listOf(
+            ModelInfo("paid/big", tools = true, context = 1_000_000),
+            ModelInfo("x/chat:free", tools = false, free = true),
+            ModelInfo("y/gpt-oss-120b:free", tools = true, free = true, context = 131_000),
+        ))
+        assertEquals(listOf("y/gpt-oss-120b:free", "x/chat:free", "paid/big"), or.map { it.id })
+        assertEquals("free · phone control · 131k context", ModelCatalog.tags(or.first()))
+        val chat = ModelCatalog.geminiChatModels(gemini("gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-pro", "gemini-3.8-flash-tts"))
+        assertEquals(listOf("gemini-flash-latest", "gemini-3.5-flash", "gemini-2.5-pro"), chat)
+    }
+
+    private fun gemini(vararg ids: String) = ids.map { ModelInfo(it, methods = listOf("generateContent")) }
+}

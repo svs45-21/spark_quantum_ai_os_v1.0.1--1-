@@ -147,17 +147,15 @@ object ModelCatalog {
 
     private val GEMINI_NOT_CHAT = listOf(
         "tts", "image", "embedding", "live", "audio", "native", "robotics", "computer-use",
-        "exp", "learnlm", "nano", "gemma", "aqa", "veo", "imagen", "lyria",
+        "exp", "learnlm", "nano", "gemma", "aqa", "veo", "imagen", "lyria", "transcribe",
     )
 
-    /** Best Gemini model for chat with tool calls. */
-    fun pickGeminiChat(models: List<ModelInfo>): String? {
-        val ids = models.filter(::canGenerate).map { it.id }
-            .filter { id -> id.startsWith("gemini") && GEMINI_NOT_CHAT.none { id.contains(it) } }
-        if (ids.isEmpty()) return null
-        // The rolling alias always points at the current Flash model, so it never retires.
-        if ("gemini-flash-latest" in ids) return "gemini-flash-latest"
+    /** Every Gemini chat model, best first. The rolling Flash alias leads because it never retires. */
+    fun geminiChatModels(models: List<ModelInfo>): List<String> {
+        val ids = models.filter(::canGenerate).map { it.id }.distinct()
+            .filter { id -> id.startsWith("gemini") && id !in RETIRED && GEMINI_NOT_CHAT.none { id.contains(it) } }
         fun rank(id: String): Int = when {
+            id == "gemini-flash-latest" -> -1
             id.contains("flash") && !id.contains("lite") -> 0
             id.contains("flash-lite") || id == "gemini-flash-lite-latest" -> 1
             id.contains("pro") -> 2
@@ -165,30 +163,43 @@ object ModelCatalog {
         }
         return ids.sortedWith(
             compareBy<String> { rank(it) }
+                .thenBy { if (it.endsWith("-latest")) 0 else 1 }
                 .thenByDescending { geminiVersion(it) }
                 .thenBy { if (it.contains("preview")) 1 else 0 }
                 .thenBy { it.length }
-        ).first()
+                .thenBy { it }
+        )
     }
 
-    /** Best Gemini model for natural speech. */
-    fun pickGeminiTts(models: List<ModelInfo>): String? = models.filter(::canGenerate).map { it.id }
-        .filter { it.startsWith("gemini") && it.contains("tts") }
+    /** Best Gemini model for chat with tool calls. */
+    fun pickGeminiChat(models: List<ModelInfo>): String? = geminiChatModels(models).firstOrNull()
+
+    /** Every Gemini speech model, best first. */
+    fun geminiTtsModels(models: List<ModelInfo>): List<String> = models.filter(::canGenerate).map { it.id }.distinct()
+        .filter { it.startsWith("gemini") && it.contains("tts") && it !in RETIRED }
         .sortedWith(
             compareBy<String> { if (it.contains("lite")) 1 else 0 }
                 .thenByDescending { geminiVersion(it) }
                 .thenBy { if (it.contains("preview")) 1 else 0 }
-        ).firstOrNull()
+                .thenBy { it }
+        )
 
-    /** Best Gemini model for making and editing images. */
-    fun pickGeminiImage(models: List<ModelInfo>): String? = models.filter(::canGenerate).map { it.id }
+    /** Best Gemini model for natural speech. */
+    fun pickGeminiTts(models: List<ModelInfo>): String? = geminiTtsModels(models).firstOrNull()
+
+    /** Every Gemini image model, best first. */
+    fun geminiImageModels(models: List<ModelInfo>): List<String> = models.filter(::canGenerate).map { it.id }.distinct()
         .filter { it.startsWith("gemini") && it.contains("image") }
         .sortedWith(
             compareBy<String> { if (it.contains("flash")) 0 else 1 }
                 .thenBy { if (it.contains("lite")) 1 else 0 }
                 .thenByDescending { geminiVersion(it) }
                 .thenBy { if (it.contains("preview")) 1 else 0 }
-        ).firstOrNull()
+                .thenBy { it }
+        )
+
+    /** Best Gemini model for making and editing images. */
+    fun pickGeminiImage(models: List<ModelInfo>): String? = geminiImageModels(models).firstOrNull()
 
     private val NOT_CHAT = listOf(
         "whisper", "tts", "playai", "orpheus", "guard", "embed", "distil", "compound",
@@ -211,40 +222,66 @@ object ModelCatalog {
         "llama-3.1-8b-instant",
     )
 
-    fun pickGroq(models: List<ModelInfo>): String? {
-        val chat = chatOnly(models)
-        val ids = chat.map { it.id }.toSet()
-        GROQ_PREFERRED.firstOrNull { it in ids }?.let { return it }
-        return chat.maxByOrNull { it.context }?.id
+    private fun preferenceIndex(id: String, preferred: List<String>, exact: Boolean): Int {
+        val i = preferred.indexOfFirst { if (exact) id == it else id.contains(it, ignoreCase = true) }
+        return if (i < 0) preferred.size else i
     }
+
+    /** Every Groq chat model, best first. */
+    fun groqModels(models: List<ModelInfo>): List<ModelInfo> = chatOnly(models).distinctBy { it.id }.sortedWith(
+        compareBy<ModelInfo> { preferenceIndex(it.id, GROQ_PREFERRED, exact = true) }
+            .thenByDescending { it.context }
+            .thenBy { it.id }
+    )
+
+    fun pickGroq(models: List<ModelInfo>): String? = groqModels(models).firstOrNull()?.id
 
     private val OPENROUTER_PREFERRED = listOf(
         "gpt-oss-120b", "deepseek-chat", "deepseek-v3", "qwen3-coder", "qwen3", "kimi-k2", "glm-4",
         "llama-3.3-70b", "llama-4", "mistral-small", "gemini", "gemma-3", "gpt-oss-20b",
     )
 
-    /** A free OpenRouter model that can call tools (phone control needs tools). */
-    fun pickOpenRouter(models: List<ModelInfo>): String? {
-        val free = chatOnly(models).filter { it.free }
-        val withTools = free.filter { it.tools == true }.ifEmpty { free.filter { it.tools != false } }
-        if (withTools.isEmpty()) return null
-        for (want in OPENROUTER_PREFERRED) {
-            withTools.filter { it.id.contains(want, ignoreCase = true) }
-                .maxByOrNull { it.context }?.let { return it.id }
+    /**
+     * Every OpenRouter chat model. Free models that can call tools (needed for
+     * phone control) come first, then other free ones, then paid models.
+     */
+    fun openRouterModels(models: List<ModelInfo>): List<ModelInfo> {
+        fun group(m: ModelInfo) = when {
+            m.free && m.tools != false -> if (m.tools == true) 0 else 1
+            m.free -> 2
+            m.tools == true -> 3
+            else -> 4
         }
-        return withTools.maxByOrNull { it.context }?.id
+        return chatOnly(models).distinctBy { it.id }.sortedWith(
+            compareBy<ModelInfo> { group(it) }
+                .thenBy { preferenceIndex(it.id, OPENROUTER_PREFERRED, exact = false) }
+                .thenByDescending { it.context }
+                .thenBy { it.id }
+        )
     }
+
+    /** A free OpenRouter model that can call tools (phone control needs tools). */
+    fun pickOpenRouter(models: List<ModelInfo>): String? =
+        openRouterModels(models).firstOrNull { it.free && it.tools != false }?.id
 
     private val LOCAL_PREFERRED = listOf("qwen3", "llama3.3", "llama3.1", "qwen2.5", "mistral", "llama3.2", "gemma")
 
-    /** Ollama / LM Studio / custom servers: prefer families that handle tools well. */
-    fun pickLocal(models: List<ModelInfo>): String? {
-        val chat = chatOnly(models)
-        for (want in LOCAL_PREFERRED) {
-            chat.firstOrNull { it.id.contains(want, ignoreCase = true) }?.let { return it.id }
-        }
-        return chat.firstOrNull()?.id
-    }
+    /** Ollama / LM Studio / custom servers, families that handle tools well first. */
+    fun localModels(models: List<ModelInfo>): List<ModelInfo> = chatOnly(models).distinctBy { it.id }
+        .sortedWith(compareBy<ModelInfo> { preferenceIndex(it.id, LOCAL_PREFERRED, exact = false) }.thenBy { it.id })
+
+    fun pickLocal(models: List<ModelInfo>): String? = localModels(models).firstOrNull()?.id
+
+    /** Short tags shown beside a model in the drop-down. */
+    fun tags(m: ModelInfo): String = listOfNotNull(
+        if (m.free) "free" else null,
+        when (m.tools) {
+            true -> "phone control"
+            false -> "chat only"
+            null -> null
+        },
+        if (m.context >= 1000) "${m.context / 1000}k context" else null,
+    ).joinToString(" · ")
 
     /** True when an error body says the model itself is the problem. */
     fun looksLikeModelProblem(detail: String): Boolean {
