@@ -41,6 +41,8 @@ class Speaker(private val context: Context) {
     @Volatile private var lastWordAt = 0L
     @Volatile private var lastWordLength = 0
     @Volatile private var wordEvents = false
+    @Volatile private var currentChunk = ""
+    @Volatile private var currentWord = ""
 
     private val tts: TextToSpeech = TextToSpeech(context.applicationContext) { status ->
         ready.complete(status == TextToSpeech.SUCCESS)
@@ -58,6 +60,7 @@ class Speaker(private val context: Context) {
                 wordEvents = true
                 lastWordAt = SystemClock.uptimeMillis()
                 lastWordLength = end - start
+                currentWord = currentChunk.substring(start.coerceIn(0, currentChunk.length), end.coerceIn(0, currentChunk.length))
             }
         })
     }
@@ -79,6 +82,7 @@ class Speaker(private val context: Context) {
         onLevel: (Float) -> Unit = {},
         pitch: Float = 1f,
         rate: Float = 1f,
+        onMouth: (com.spark.companion.brain.MouthShape?) -> Unit = {},
     ) {
         val clean = SpeechText.forSpeech(text)
         if (clean.isBlank()) return
@@ -113,10 +117,18 @@ class Speaker(private val context: Context) {
                         // Use the real audio level unless the device only feeds us silence.
                         val real = meter?.takeIf { now - started < 900 || it.maxSeen > 0.03f }?.level
                         onLevel(real ?: syntheticLevel(now))
+                        // Lip shapes from the letters of the word being spoken.
+                        onMouth(
+                            if (wordEvents && currentWord.isNotEmpty()) {
+                                com.spark.companion.brain.LipSync.shapeInWord(currentWord, now - lastWordAt, 62f / rate.coerceIn(0.5f, 2f))
+                            } else null
+                        )
                         delay(33)
                     }
                 }
                 for (chunk in SpeechText.chunks(clean)) {
+                    currentChunk = chunk
+                    currentWord = ""
                     val id = "spark-" + counter.incrementAndGet()
                     // Generous ceiling so a TTS engine that never calls back can't hang the app.
                     withTimeoutOrNull(20_000L + chunk.length * 120L) {
@@ -141,6 +153,7 @@ class Speaker(private val context: Context) {
         } finally {
             meter?.close()
             onLevel(0f)
+            onMouth(null)
         }
     }
 

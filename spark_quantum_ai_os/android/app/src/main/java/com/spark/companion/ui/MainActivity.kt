@@ -139,6 +139,7 @@ class MainActivity : Activity() {
         scope.launch { engine.messages.collect { renderMessages(it) } }
         scope.launch { engine.level.collect { avatar.level = it } }
         scope.launch { engine.mood.collect { avatar.mood = it } }
+        scope.launch { engine.mouth.collect { avatar.mouthShape = it } }
         scope.launch {
             engine.avatar.collect { profile ->
                 avatar.profile = profile
@@ -299,9 +300,12 @@ class MainActivity : Activity() {
         // The avatar.
         avatar = AvatarView(this).apply {
             contentDescription = "Talk to Spark"
+            fullBody = true
             setOnClickListener { if (engine.busy) engine.stop() else startVoice() }
         }
-        root.addView(avatar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 250)))
+        // Tall enough for a full-body avatar standing in open space.
+        val avatarHeight = maxOf(Ui.dp(this, 250), (resources.displayMetrics.heightPixels * 0.44f).toInt())
+        root.addView(avatar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, avatarHeight))
 
         // Character picker and wake-word switch.
         styleRow = LinearLayout(this).apply {

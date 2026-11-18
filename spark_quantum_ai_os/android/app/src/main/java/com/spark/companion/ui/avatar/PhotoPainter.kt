@@ -41,6 +41,28 @@ class PhotoPainter(portrait: Bitmap, val landmarks: FaceLandmarks, accent: Int) 
         )
     }
 
+    /** Size of the portrait in unit space (it spans -frame/2..frame/2). */
+    val frame: Float get() = warp.frame
+
+    /** Average skin colour of the cheeks, so a body can match the face. */
+    val skinTone: Int by lazy {
+        val lm = landmarks
+        val d = lm.eyeDistance
+        val a = average(sourceForTone, lm.leftEyeX, lm.eyesY + 0.45f * d, 0.07f * d)
+        val b = average(sourceForTone, lm.rightEyeX, lm.eyesY + 0.45f * d, 0.07f * d)
+        Color.rgb((Color.red(a) + Color.red(b)) / 2, (Color.green(a) + Color.green(b)) / 2, (Color.blue(a) + Color.blue(b)) / 2)
+    }
+    private val sourceForTone = portrait
+
+    /** The animated face alone (no frame or background), in unit space. */
+    fun drawFace(c: Canvas, p: Pose) {
+        warp.update(p)
+        drawMouthInside(c, p)
+        c.drawBitmapMesh(topHalf, warp.cols, warp.topRows, warp.top, 0, null, 0, bitmapPaint)
+        c.drawBitmapMesh(bottomHalf, warp.cols, warp.bottomRows, warp.bottom, 0, null, 0, bitmapPaint)
+        drawLids(c, p)
+    }
+
     override fun drawHead(c: Canvas, p: Pose, t: Float) {
         val r = warp.frame / 2
         c.save()
@@ -48,11 +70,7 @@ class PhotoPainter(portrait: Bitmap, val landmarks: FaceLandmarks, accent: Int) 
         clip.addCircle(0f, 0f, r, Path.Direction.CW)
         c.clipPath(clip)
         c.drawCircle(0f, 0f, r, solid(Color.parseColor("#0B1020")))
-        warp.update(p)
-        drawMouthInside(c, p)
-        c.drawBitmapMesh(topHalf, warp.cols, warp.topRows, warp.top, 0, null, 0, bitmapPaint)
-        c.drawBitmapMesh(bottomHalf, warp.cols, warp.bottomRows, warp.bottom, 0, null, 0, bitmapPaint)
-        drawLids(c, p)
+        drawFace(c, p)
         // Dim slightly while asleep.
         if (p.zzz > 0.02f) c.drawCircle(0f, 0f, r, solid(alpha(Color.parseColor("#050814"), 0.22f * p.zzz)))
         c.restore()

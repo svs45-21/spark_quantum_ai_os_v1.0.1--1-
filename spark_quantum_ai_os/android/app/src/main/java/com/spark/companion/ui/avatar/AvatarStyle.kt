@@ -9,7 +9,21 @@ enum class AvatarStyle(
     val accent: Int,
     /** Added to the system prompt so the voice matches the look. */
     val personality: String,
+    /** Set for full-body characters. */
+    val gender: Gender? = null,
 ) {
+    ARIA(
+        "Aria", "Full body · 50 outfits",
+        Color.parseColor("#FF6FA8"),
+        "You appear as Aria, a graceful young woman shown full body. Be warm, expressive and lively, with natural body language.",
+        Gender.FEMALE,
+    ),
+    LEO(
+        "Leo", "Full body · 50 outfits",
+        Color.parseColor("#3DDC97"),
+        "You appear as Leo, a friendly young man shown full body. Be relaxed, upbeat and supportive, like a good friend.",
+        Gender.MALE,
+    ),
     NOVA(
         "Nova", "Sleek robot",
         Color.parseColor("#00D4FF"),

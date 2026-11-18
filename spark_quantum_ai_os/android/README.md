@@ -6,6 +6,14 @@ Spark appears as an **animated avatar**. Pick Nova (a sleek robot), Mira (a warm
 
 ![Nova, Mira and Kit asleep, waking, listening, thinking, talking, sad, surprised and working](docs/avatars.png)
 
+### Full-body avatars
+
+**Aria** (female) and **Leo** (male) stand in open space, with no frame, and use their whole body: they breathe, shift their weight, wave hello, talk with their hands, cup an ear to listen, put a hand to their chin to think and hold a phone while working on it. Their faces and bodies show **22 feelings**: calm, happy, excited, playful, loving, grateful, proud, confident, relieved, concerned, sad, angry, scared, disgusted, surprised, confused, thoughtful, shy, embarrassed, nervous, bored and sleepy. The lips form real mouth shapes (open "a", rounded "oo", spread "ee", closed "m"): from the audio itself with Gemini voices, and from the letters being spoken with the phone's voice.
+
+Each has **50 outfits**: everyday wear, office suits, sarees, lehengas, anarkalis, kurtas, sherwanis, uniforms, sportswear, party wear, winter coats and more, plus hair styles, hair, skin and eye colours, and beards. Change them under Avatar Studio → **Change outfit & look**.
+
+**Put your own face on a body:** Avatar Studio → **Full-body avatar with my face**, pick female or male, and choose a photo. Your face is found, lined up with the body's head and blended in with soft edges; the skin and hair colours are matched to your photo. Your face still blinks, talks and shows every feeling.
+
 ### Make your own avatar
 
 Open **Avatar Studio** (the **＋ Create** chip under the avatar, or Settings → Avatar) and either:
@@ -78,7 +86,7 @@ You can say the wake word and your request in one breath ("Spark, set an alarm f
 | Providers | Brain runs on Gemini, Groq, OpenRouter, your own Ollama, or any OpenAI-compatible server (your own models). Avatar images on Pollinations (free) or Gemini. |
 | n8n | Trigger your n8n automation workflows by voice or from routines. |
 | Languages | 27 languages; replies, voice and listening follow the language you speak. Optional Gemini natural voices with emotion. |
-| Avatar | Three animated characters with sleep, wake-up, listening, thinking, working and speaking animations, lip-sync and mood expressions. A floating avatar appears over other apps when it wakes. |
+| Avatar | Full-body Aria and Leo (50 outfits each, your face optional) plus three animated faces, with sleep, wake-up, listening, thinking, working and speaking animations, mouth-shape lip-sync, 22 feelings and body language. A floating avatar appears over other apps when it wakes. |
 | Wake word | Always-on "Spark" detection (also hears "Sparky", "Sparks", "स्पार्क"). On Android 12+ it uses the phone's offline recogniser, which usually doesn't beep. |
 | Conversation | Natural back-and-forth voice conversation that keeps listening after each reply, plus a typed chat. It matches your language (English, Hindi, Hinglish and others) and remembers facts about you across sessions. |
 | Phone control | Reads the screen and taps, types, scrolls and presses back, home or recents in any app, through the Accessibility service. A floating orb stays available over other apps. |
@@ -174,6 +182,7 @@ The agent loop sends the conversation and tool list to Gemini, runs the function
 - Lip-sync follows the real voice volume where the phone allows it; otherwise it follows word timing.
 - Photo avatars animate a single picture by warping it. The face is found and straightened automatically (ML Kit, on-device). They look best with a front-facing face, eyes open and mouth closed; a face turned far to the side can't be straightened in 2D.
 - AI restyle and AI creation use Gemini image generation, which has a small free-tier quota. If it says the usage limit was hit, wait a minute, or use the photo as it is (which needs no quota and stays on the phone).
-- Gemini model names change over time. If avatar creation or natural voices say the model isn't found, update the names under Settings → Advanced.
+- Gemini model names change over time. Spark lists the models your key can use and switches by itself; you can also pick one from the drop-downs in Settings.
+- Full-body avatars are drawn by the app (not photos), so they stay smooth and animate freely. The face swap uses the front of your face only: hair and background from the photo are replaced by the avatar's own hair.
 - Games, videos and some banking apps hide their content from accessibility services, so Spark can't read or tap inside them.
 - Android 14+ may refuse to keep the microphone alive when a conversation is started from the background. If Spark stops listening behind another app, tap the orb.
