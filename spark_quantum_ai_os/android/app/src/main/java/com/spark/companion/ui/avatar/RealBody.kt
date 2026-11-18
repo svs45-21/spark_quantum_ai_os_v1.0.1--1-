@@ -14,6 +14,20 @@ import kotlinx.coroutines.withContext
  */
 object RealBody {
 
+    /** Outfit id for a body that comes from the user's own full-body photo. */
+    const val PHOTO_OUTFIT = "photo"
+
+    /**
+     * Uses a real full-body photo (a person standing on a plain background) as
+     * the avatar's body: finds the face and lifts the person off the backdrop.
+     */
+    @Throws(LlmException::class)
+    suspend fun fromPhoto(photo: Bitmap): Result {
+        val face = FaceTools.detect(photo)
+            ?: throw LlmException("I couldn't find a face in that photo. Use a clear photo of one person, facing the camera.")
+        return withContext(Dispatchers.Default) { cutOut(photo, face) }
+    }
+
     /** A finished realistic body: the cut-out picture and where its face is (fractions of the picture). */
     class Result(val bitmap: Bitmap, val face: FaceLandmarks)
 

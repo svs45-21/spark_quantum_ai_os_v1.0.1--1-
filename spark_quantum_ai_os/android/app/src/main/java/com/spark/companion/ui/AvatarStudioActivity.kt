@@ -86,6 +86,11 @@ class AvatarStudioActivity : Activity() {
     private var pendingReal: com.spark.companion.ui.avatar.RealBody.Result? = null
     private var pendingRealSwap = false
     private var pendingRealOutfit: String? = null
+    /** Making the realistic picture in the background. */
+    private var realJob: Job? = null
+    private var realError: String? = null
+    /** The next photo picked is a full-body photo to use as the body. */
+    private var bodyPhotoMode = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -233,10 +238,19 @@ class AvatarStudioActivity : Activity() {
         }
 
         heading("CREATE A NEW ONE")
-        button("Full-body avatar with my face", primary = true) { askGender() }
+        button("Use a full-body photo (real person)", primary = true) {
+            bodyPhotoMode = true
+            askGender()
+        }
+        note("Pick a photo of a person standing, head to toe, on a plain background (like a studio or wall photo). That real person becomes the avatar: they talk, blink, show feelings and breathe.")
+        button("Full-body avatar with my face") {
+            bodyPhotoMode = false
+            askGender()
+        }
         note("Upload a photo: your face goes onto a full female or male body, with matching skin and hair. Then pick from 50 outfits.")
         button("Use a photo (face only)") {
             pendingGender = null
+            bodyPhotoMode = false
             pickPhoto()
         }
         note("Any clear, front-facing face works: a selfie, a portrait, a drawing or a painting. Use photos of yourself or of people who are happy to be an avatar.")
@@ -344,6 +358,24 @@ class AvatarStudioActivity : Activity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != REQUEST_PHOTO || resultCode != RESULT_OK) return
         val uri = data?.data ?: return
+        if (bodyPhotoMode) {
+            bodyPhotoMode = false
+            working("Getting the person ready…") {
+                val loaded = withContext(Dispatchers.IO) { FaceTools.load(this@AvatarStudioActivity, uri) }
+                    ?: throw LlmException("Couldn't open that picture.")
+                val result = com.spark.companion.ui.avatar.RealBody.fromPhoto(loaded)
+                val framed = withContext(Dispatchers.Default) { FaceTools.portrait(loaded) }
+                photo = loaded
+                if (pendingGender == null) pendingGender = com.spark.companion.ui.avatar.Gender.FEMALE
+                startNew(framed)
+                body = body?.copy(outfitId = com.spark.companion.ui.avatar.RealBody.PHOTO_OUTFIT, realistic = true)
+                pendingReal = result
+                pendingRealSwap = false
+                pendingRealOutfit = com.spark.companion.ui.avatar.RealBody.PHOTO_OUTFIT
+                show(Screen.EDIT)
+            }
+            return
+        }
         working("Finding the face…") {
             val loaded = withContext(Dispatchers.IO) { FaceTools.load(this@AvatarStudioActivity, uri) }
                 ?: throw LlmException("Couldn't open that picture.")
@@ -479,6 +511,8 @@ class AvatarStudioActivity : Activity() {
         }
         refreshPreview()
         previewRow.addView(preview, LinearLayout.LayoutParams(Ui.dp(this, 170), Ui.dp(this, if (body != null) 300 else 170)))
+        val waitingReal = body?.let { b -> b.realistic && !(pendingReal != null && pendingRealOutfit == b.outfitId) } == true
+        preview.alpha = if (waitingReal) 0.3f else 1f
         val controls = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         fun control(label: String, action: () -> Unit) = controls.addView(
             Ui.button(this, label, Ui.SURFACE_HI, Ui.TEXT, action),
@@ -508,6 +542,7 @@ class AvatarStudioActivity : Activity() {
         previewRow.addView(controls, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             .apply { marginStart = Ui.dp(this@AvatarStudioActivity, 12) })
         content.addView(previewRow)
+        realStatus(waitingReal, bitmap)
 
         heading("BODY")
         note("Show just the face, or put it on a full body that can move, gesture and wear 50 outfits.")
@@ -647,13 +682,10 @@ class AvatarStudioActivity : Activity() {
         }
         content.addView(preview, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 340)))
         if (start.realistic) {
-            if (currentReal == null) {
-                note("This is only a rough drawn preview. Create the realistic photo now, or just save: the realistic person" +
-                    (if (faceBitmap != null) " with your face" else "") + " is made automatically (free, 20–40 seconds).")
-                button("Create realistic photo", primary = true) { makeReal(faceBitmap) }
-            } else {
-                note("Realistic photo ready. Not quite right? Each try gives a new picture.")
-                button("Try another photo") { makeReal(faceBitmap) }
+            preview.alpha = if (currentReal == null) 0.3f else 1f
+            if (!realStatus(currentReal == null, faceBitmap)) {
+                note("Not quite right? Each try gives a new picture.")
+                button("Try another picture") { makeReal(faceBitmap) }
             }
         }
 
@@ -690,6 +722,11 @@ class AvatarStudioActivity : Activity() {
         }
         val b = start
         fun update(next: com.spark.companion.ui.avatar.BodySpec, rebuild: Boolean) {
+            if (next.outfitId != body?.outfitId || next.realistic != body?.realistic) {
+                // A different outfit needs its own picture.
+                realJob?.cancel()
+                realError = null
+            }
             body = next
             if (rebuild) {
                 val y = (content.parent as? ScrollView)?.scrollY ?: 0
@@ -805,24 +842,60 @@ class AvatarStudioActivity : Activity() {
      * image service draws the person and your face is swapped on.
      */
     private fun makeReal(facePhoto: Bitmap?) {
+        realJob?.cancel()
+        realError = null
+        startReal(facePhoto)
+        rebuildKeepingScroll()
+    }
+
+    /** Starts making the realistic picture in the background; the screen updates when it's ready. */
+    private fun startReal(facePhoto: Bitmap?) {
         val spec = body ?: return
+        if (realJob?.isActive == true) return
         val settings = engine.settings
         val gemini = com.spark.companion.brain.GeminiImageGen({ settings.apiKey }, { settings.imageModel }, { settings.imageModel = it }, aspectRatio = "9:16")
         val free = PollinationsImageGen(PollinationsImageGen.TALL_WIDTH, PollinationsImageGen.TALL_HEIGHT)
         val tryGeminiFirst = settings.apiKey.isNotBlank() && (facePhoto != null || settings.imageProvider == "gemini")
-        working("Creating a realistic photo… (20–40 seconds)") {
-            val (result, swapped) = try {
-                if (!tryGeminiFirst) throw LlmException("skip")
-                com.spark.companion.ui.avatar.RealBody.create(gemini, spec, facePhoto) to false
+        realError = null
+        realJob = scope.launch {
+            try {
+                val (result, swapped) = try {
+                    if (!tryGeminiFirst) throw LlmException("skip")
+                    com.spark.companion.ui.avatar.RealBody.create(gemini, spec, facePhoto) to false
+                } catch (e: LlmException) {
+                    // Free fallback (also when Gemini's image quota is used up).
+                    com.spark.companion.ui.avatar.RealBody.create(free, spec, null) to (facePhoto != null)
+                }
+                pendingReal = result
+                pendingRealSwap = swapped
+                pendingRealOutfit = spec.outfitId
             } catch (e: LlmException) {
-                // Free fallback (also when Gemini's image quota is used up).
-                com.spark.companion.ui.avatar.RealBody.create(free, spec, null) to (facePhoto != null)
+                realError = e.message ?: "Something went wrong."
             }
-            pendingReal = result
-            pendingRealSwap = swapped
-            pendingRealOutfit = spec.outfitId
-            show(Screen.OUTFIT)
+            if (screen == Screen.EDIT || screen == Screen.OUTFIT) rebuildKeepingScroll()
         }
+    }
+
+    private fun rebuildKeepingScroll() {
+        val scroll = content.parent as? ScrollView
+        val y = scroll?.scrollY ?: 0
+        show(screen)
+        scroll?.post { scroll.scrollTo(0, y) }
+    }
+
+    /** A status line and retry button for the realistic picture; true while it isn't ready. */
+    private fun realStatus(needed: Boolean, facePhoto: Bitmap?): Boolean {
+        if (!needed) return false
+        val error = realError
+        when {
+            realJob?.isActive == true -> note("Creating the realistic person… (about 20–40 seconds). The faint figure is only a placeholder.")
+            error != null -> {
+                note("Couldn't create the realistic person: $error")
+                button("Try again", primary = true) { makeReal(facePhoto) }
+            }
+            else -> startReal(facePhoto).also { note("Creating the realistic person… (about 20–40 seconds).") }
+        }
+        return true
     }
 
     /** A few seconds of pretend speech so you can check the mouth. */

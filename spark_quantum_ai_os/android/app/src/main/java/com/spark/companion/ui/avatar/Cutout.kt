@@ -52,6 +52,38 @@ object Cutout {
             if (y > 0) seed(i - w)
             if (y < h - 1) seed(i + w)
         }
+        // Enclosed gaps (between the legs, under an arm) don't touch the border:
+        // clear sizeable patches that match the backdrop closely.
+        val strict = tolerance / 2
+        val minHole = (w * h * 0.0012f).toInt().coerceAtLeast(12)
+        val visited = BooleanArray(w * h)
+        val comp = IntArray(w * h)
+        for (start in 0 until w * h) {
+            if (removed[start] || visited[start] || distance(px[start], bg) > strict) continue
+            var n = 0
+            head = 0
+            tail = 0
+            queue[tail++] = start
+            visited[start] = true
+            while (head < tail) {
+                val i = queue[head++]
+                comp[n++] = i
+                val x = i % w
+                val y = i / w
+                fun visit(j: Int) {
+                    if (!visited[j] && !removed[j] && distance(px[j], bg) <= strict) {
+                        visited[j] = true
+                        queue[tail++] = j
+                    }
+                }
+                if (x > 0) visit(i - 1)
+                if (x < w - 1) visit(i + 1)
+                if (y > 0) visit(i - w)
+                if (y < h - 1) visit(i + w)
+            }
+            if (n >= minHole) for (k in 0 until n) removed[comp[k]] = true
+        }
+
         val out = px.copyOf()
         for (i in out.indices) if (removed[i]) out[i] = 0
         // Soft edge: pixels next to the backdrop get partly transparent.
