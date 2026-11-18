@@ -17,12 +17,6 @@ class ModelListStore(context: Context) {
         set(value) = prefs.edit().putLong("last_refresh", value).apply()
 
     companion object {
-        const val GEMINI_CHAT = "gemini_chat"
-        const val GEMINI_TTS = "gemini_tts"
-        const val GEMINI_IMAGE = "gemini_image"
-        const val GROQ = "groq"
-        const val OPENROUTER = "openrouter"
-        const val OLLAMA = "ollama"
-        const val CUSTOM = "custom"
+        const val CLAUDE = "claude"
     }
 }

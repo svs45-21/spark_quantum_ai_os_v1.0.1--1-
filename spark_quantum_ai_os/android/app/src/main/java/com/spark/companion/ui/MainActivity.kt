@@ -75,7 +75,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         engine.uiVisible.value = true
-        setupBanner.visibility = if (engine.settings.apiKey.isEmpty()) View.VISIBLE else View.GONE
+        setupBanner.visibility = if (engine.settings.claudeApiKey.isEmpty()) View.VISIBLE else View.GONE
         // Pick up avatars created or edited in the studio.
         renderStyleRow(engine.avatar.value)
         renderWakeChip()
@@ -296,7 +296,7 @@ class MainActivity : Activity() {
         root.addView(bar)
 
         // First-run banner.
-        setupBanner = Ui.text(this, "Add your Gemini API key to wake me up  →", 14.5f, Ui.BG, bold = true).apply {
+        setupBanner = Ui.text(this, "Add your Claude API key to wake me up  →", 14.5f, Ui.BG, bold = true).apply {
             background = Ui.rounded(Ui.ACCENT, Ui.dp(this@MainActivity, 14).toFloat())
             setPadding(pad, Ui.dp(this@MainActivity, 12), pad, Ui.dp(this@MainActivity, 12))
             visibility = View.GONE

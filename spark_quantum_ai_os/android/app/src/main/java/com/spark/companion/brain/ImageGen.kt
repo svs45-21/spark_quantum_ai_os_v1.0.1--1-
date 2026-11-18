@@ -8,34 +8,13 @@ import java.net.URI
 import java.net.URLEncoder
 import kotlin.random.Random
 
-/** Makes an avatar portrait from a prompt (and optionally a source photo). */
+/** Makes an avatar picture from a prompt (Claude doesn't generate images, so a free image service does). */
 interface ImageGen {
     /** Whether this generator can restyle an existing photo (image-to-image). */
     val canUsePhoto: Boolean
 
     @Throws(LlmException::class)
     suspend fun generate(prompt: String, photoJpeg: ByteArray?): ByteArray
-}
-
-/** Gemini image generation: can restyle a photo or create from a description. */
-class GeminiImageGen(
-    private val apiKey: () -> String,
-    model: () -> String,
-    onModelSwitch: (String) -> Unit = {},
-    /** e.g. "9:16" for full-length pictures; null for the model's default (square). */
-    private val aspectRatio: String? = null,
-) : ImageGen {
-    override val canUsePhoto = true
-    private val models = ModelSwitch({ model().trim().ifEmpty { GeminiMedia.DEFAULT_IMAGE_MODEL } }, onModelSwitch)
-
-    override suspend fun generate(prompt: String, photoJpeg: ByteArray?): ByteArray {
-        val body = GeminiMedia.imageRequest(prompt, photoJpeg, aspectRatio = aspectRatio).toString()
-        val key = apiKey().trim()
-        val reply = models.run({ ModelCatalog.pickGeminiImage(ModelCatalog.listGemini(key)) }) { m ->
-            GeminiHttp.post(GeminiHttp.endpoint(m, GeminiMedia.DEFAULT_IMAGE_MODEL), key, body, 180_000)
-        }
-        return GeminiMedia.parseImage(reply)
-    }
 }
 
 /**

@@ -4,6 +4,16 @@ plugins {
 }
 
 android {
+    // The Anthropic SDK's dependencies (Jackson, OkHttp) ship overlapping META-INF files.
+    packaging {
+        resources {
+            excludes += setOf(
+                "META-INF/DEPENDENCIES", "META-INF/LICENSE*", "META-INF/NOTICE*", "META-INF/INDEX.LIST",
+                "META-INF/versions/9/previous-compilation-data.bin",
+            )
+        }
+    }
+
     namespace = "com.spark.companion"
     compileSdk = 36
 
@@ -84,6 +94,9 @@ dependencies {
 
     // For FileProvider (sharing the camera photo) and quick-access widget bits.
     implementation("androidx.core:core-ktx:1.13.1")
+
+    // Claude: Anthropic's official Java SDK (chat, tools, vision). Spark's only AI provider.
+    implementation("com.anthropic:anthropic-java:3.3.0")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")

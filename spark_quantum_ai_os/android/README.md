@@ -1,6 +1,6 @@
 # Spark: the Android companion
 
-Spark turns your Android phone into a talking AI companion that can also operate the phone for you. It's part of SPARK QUANTUM AI OS. It runs on its own using Google Gemini, and it can hand heavy jobs to desktop SPARK when your computer is reachable.
+Spark turns your Android phone into a talking AI companion that can also operate the phone for you. It's part of SPARK QUANTUM AI OS. It thinks with **Claude** (Anthropic), and it can hand heavy jobs to desktop SPARK when your computer is reachable.
 
 Spark appears as an **animated avatar**. Pick Nova (a sleek robot), Mira (a warm, caring girl) or Kit (a playful fox). Each has its own look and personality. While idle the avatar **sleeps**: eyes closed, breathing slowly, with floating "Zzz". **Say "Spark"** from anywhere and it wakes up with a sleepy blink, a stretch and a burst of sparkles, greets you, and starts talking with you. Its mouth moves with its voice, its face shows the mood of each reply (happy, playful, concerned, surprised…), and subtitles show what it's saying. After about 15 quiet seconds it dozes off again.
 
@@ -8,11 +8,11 @@ Spark appears as an **animated avatar**. Pick Nova (a sleek robot), Mira (a warm
 
 ### Full-body avatars
 
-**Aria** (female) and **Leo** (male) stand in open space, with no frame, and use their whole body: they breathe, shift their weight, wave hello, talk with their hands, cup an ear to listen, put a hand to their chin to think and hold a phone while working on it. Their faces and bodies show **22 feelings**: calm, happy, excited, playful, loving, grateful, proud, confident, relieved, concerned, sad, angry, scared, disgusted, surprised, confused, thoughtful, shy, embarrassed, nervous, bored and sleepy. The lips form real mouth shapes (open "a", rounded "oo", spread "ee", closed "m"): from the audio itself with Gemini voices, and from the letters being spoken with the phone's voice.
+**Aria** (female) and **Leo** (male) stand in open space, with no frame, and use their whole body: they breathe, shift their weight, wave hello, talk with their hands, cup an ear to listen, put a hand to their chin to think and hold a phone while working on it. Their faces and bodies show **22 feelings**: calm, happy, excited, playful, loving, grateful, proud, confident, relieved, concerned, sad, angry, scared, disgusted, surprised, confused, thoughtful, shy, embarrassed, nervous, bored and sleepy. The lips form real mouth shapes (open "a", rounded "oo", spread "ee", closed "m"), following the letters of each word as the phone's voice speaks it.
 
 Each has **50 outfits**: everyday wear, office suits, sarees, lehengas, anarkalis, kurtas, sherwanis, uniforms, sportswear, party wear, winter coats and more, plus hair styles, hair, skin and eye colours, and beards. Change them under Avatar Studio → **Change outfit & look**.
 
-**Realistic or illustrated:** in Avatar Studio → Change outfit & look, choose **Realistic (photo)** and tap **Create realistic photo**. An image model makes a real-looking person, head to toe, in that outfit. The plain backdrop is removed so they stand in open space. Their face then blinks, talks with real mouth shapes and shows every feeling, and the body breathes, sways and nods. It's free with the Pollinations image service (no key); with your photo and a Gemini key that has image quota, Gemini keeps your likeness. **Illustrated** avatars are drawn instead, and can also wave and gesture with their arms.
+**Realistic or illustrated:** in Avatar Studio → Change outfit & look, choose **Realistic (photo)** and tap **Create realistic photo**. An image model makes a real-looking person, head to toe, in that outfit. The plain backdrop is removed so they stand in open space. Their face then blinks, talks with real mouth shapes and shows every feeling, and the body breathes, sways and nods. The picture comes from the free Pollinations image service (no key; Claude doesn't make images). With your own photo, your face is swapped onto the generated body. **Illustrated** avatars are drawn instead, and can also wave and gesture with their arms.
 
 **Put your own face on a body:** Avatar Studio → **Full-body avatar with my face**, pick female or male, and choose a photo. Your face is found, lined up with the body's head and blended in with soft edges; the skin and hair colours are matched to your photo. Your face still blinks, talks and shows every feeling.
 
@@ -20,14 +20,14 @@ Each has **50 outfits**: everyday wear, office suits, sarees, lehengas, anarkali
 
 Open **Avatar Studio** (the **＋ Create** chip under the avatar, or Settings → Avatar) and either:
 
-- **Use a photo.** Pick any clear, front-facing face: a selfie, a portrait, a painting or a drawing. Spark detects the face with Google's on-device ML Kit, reads the real eye, nose and mouth positions, straightens a tilted or slightly angled photo so the eyes are level, crops a portrait and animates it. It blinks with its own eyelids, opens its mouth as it talks, smiles, raises its brows, looks around and tilts its head. You can use the photo as it is, which keeps it on the phone. Or restyle it with AI as **Realistic**, **3D animated**, **Anime**, **Comic** or **Painted**, which sends the photo to Google Gemini and keeps your likeness.
-- **Describe one.** Write who it should be, for example "a cheerful woman in her twenties with curly black hair and a yellow kurta". Gemini paints the portrait in the look you pick.
+- **Use a photo.** Pick any clear, front-facing face: a selfie, a portrait, a painting or a drawing. Spark detects the face with Google's on-device ML Kit, reads the real eye, nose and mouth positions, straightens a tilted or slightly angled photo so the eyes are level, crops a portrait and animates it. It blinks with its own eyelids, opens its mouth as it talks, smiles, raises its brows, looks around and tilts its head. The photo stays on the phone.
+- **Describe one.** Write who it should be, for example "a cheerful woman in her twenties with curly black hair and a yellow kurta". The free Pollinations image service paints the portrait in the look you pick.
 
 The eye and mouth dots are then placed for you automatically; nudge any that are off, watch the live preview talk, blink and smile, and give it a name, a personality and a voice. Spark becomes that character, and its personality shapes how it talks. Use photos of yourself or of people who are happy to be an avatar.
 
 ### Camera vision
 
-Tap **👁 Look** (or say *"Spark, what am I looking at?"*). Spark opens the camera; snap a photo and it tells you what it is, reads or translates the text, or describes the scene, and reads the answer aloud. Uses Gemini vision (free tier).
+Tap **👁 Look** (or say *"Spark, what am I looking at?"*). Spark opens the camera; snap a photo and it tells you what it is, reads or translates the text, or describes the scene, and reads the answer aloud. Uses Claude vision.
 
 ### Proactive heads-up
 
@@ -43,28 +43,25 @@ Tap **⚡ Routines**. Create a task Spark runs on its own — at a set time on c
 - **Home-screen widget:** long-press the home screen → Widgets → Spark.
 - **Lock screen:** when summoned by the tile, widget or assistant gesture, Spark can appear over the lock screen.
 
-### Brains and image makers (all have free options)
+### The brain: Claude
 
-Spark's thinking can run on any of three providers, chosen in **Settings → Brain**:
+Spark thinks with **Claude** by Anthropic, through Anthropic's official Java SDK: conversation, operating the phone (tool use) and camera vision. Add your key in **Settings → Claude** (create one at console.anthropic.com → API keys; usage is billed to your Anthropic account). The key is encrypted on the phone and sent only to Anthropic.
 
-- **Google Gemini** — free tier, free key at aistudio.google.com/apikey. Also powers AI avatar images and natural voices.
-- **Groq** — free tier, free key at console.groq.com/keys. Very fast; good at operating the phone.
-- **OpenRouter** — free tier, free key at openrouter.ai/keys. Pick a model whose name ends in `:free`. Not every free model can call tools, so some can chat but not operate the phone.
-- **Ollama (your own models)** — run [Ollama](https://ollama.com) on your PC or home server and enter its address (e.g. `http://192.168.1.20:11434`). Free and fully private; nothing leaves your network. Create or fine-tune your own model with an Ollama `Modelfile`. Use a tool-capable model (llama3.1, qwen2.5) if you want Spark to operate the phone.
-- **Custom (any OpenAI-compatible server)** — LM Studio, vLLM, LocalAI, or your own hosted/fine-tuned model. Enter the base URL, a key if needed, and the model name.
+- **Model:** Claude Opus 5.5 by default, Anthropic's recommended model. The drop-down lists the models your key can use and updates by itself, so new Claude models appear (marked NEW).
+- **Busy or overloaded:** if the chosen model is overloaded or rate-limited, Spark answers with the next Claude model for a few minutes, then goes back.
+- **Refusals:** on models that support it, Anthropic's server-side fallback lets another model answer when a safety check declines a request, instead of failing.
+- **Pictures:** Claude doesn't generate images, so realistic bodies and avatars made from a description come from the free Pollinations image service (no key).
+- **Voice:** Spark speaks with the phone's own text-to-speech voices.
 
 ### n8n workflows
 
 Enter your n8n webhook address in **Settings → n8n workflows**, and Spark gets a `trigger_workflow` tool: it can run the automations you've built in n8n (email, calendar, home automation, any API) by name and read back the result — by voice or from a routine. Say *"email my team the weekly update"* and, if you've wired that workflow, Spark triggers it.
 
-You can switch any time; the conversation carries over. For avatar images, **Settings → Avatar images** offers **Pollinations** (free, no key, no quota) for creating an avatar from a description, or **Gemini** (free-tier quota). Restyling one of your own photos always uses Gemini. A fully free setup: Groq for the brain, Pollinations for images, the phone's own voice.
-
 ### Languages and voices
 
 Tick the languages you speak in **Settings → Languages**. Spark answers in whichever one you use, written in its own script, and switches when you do. The voice switches with it, and listening follows the conversation. On Android 14+ the recogniser can also auto-detect between your languages.
 
-- **Phone voice:** free and instant. It uses the best offline voice installed for each language. Install more under the phone's Settings → Text-to-speech.
-- **Gemini natural voice:** much more human. It carries the reply's emotion (cheerful, gentle, excited…), speaks every language, and each avatar has its own voice. It takes a moment longer and uses your Gemini quota. The lip-sync follows the exact audio.
+- **Voice:** the phone's own text-to-speech, free and instant. It uses the best offline voice installed for each language. Install more under the phone's Settings → Text-to-speech.
 
 You can say the wake word and your request in one breath ("Spark, set an alarm for 6"), tap the avatar, or long-press home or power once Spark is your default assistant. Then talk:
 
@@ -85,9 +82,9 @@ You can say the wake word and your request in one breath ("Spark, set an alarm f
 | Proactive & routines | Spoken heads-up on new messages; automations that run at a time, on charger, or on incoming SMS. |
 | Quick access | Quick-settings tile, home-screen widget, and lock-screen talk. |
 | Avatar Studio | Your own avatars from a photo (as-is or AI-restyled) or from a description, with realistic face animation. |
-| Providers | Brain runs on Gemini, Groq, OpenRouter, your own Ollama, or any OpenAI-compatible server (your own models). Avatar images on Pollinations (free) or Gemini. |
+| AI | Claude (Anthropic) for conversation, phone control and vision; Claude model list with automatic stand-in when a model is busy. Avatar pictures from the free Pollinations image service. |
 | n8n | Trigger your n8n automation workflows by voice or from routines. |
-| Languages | 27 languages; replies, voice and listening follow the language you speak. Optional Gemini natural voices with emotion. |
+| Languages | 27 languages; replies, voice and listening follow the language you speak. |
 | Avatar | Full-body Aria and Leo (50 outfits each, your face optional) plus three animated faces, with sleep, wake-up, listening, thinking, working and speaking animations, mouth-shape lip-sync, 22 feelings and body language. A floating avatar appears over other apps when it wakes. |
 | Wake word | Always-on "Spark" detection (also hears "Sparky", "Sparks", "स्पार्क"). On Android 12+ it uses the phone's offline recogniser, which usually doesn't beep. |
 | Conversation | Natural back-and-forth voice conversation that keeps listening after each reply, plus a typed chat. It matches your language (English, Hindi, Hinglish and others) and remembers facts about you across sessions. |
@@ -117,7 +114,7 @@ The APK is built by GitHub Actions. Nothing needs to be installed on your comput
 
 1. On GitHub, open **Actions → "Spark Android companion"**, pick the latest green run, and download the **Spark-companion-apk** artifact (the Full build). It's a zip containing `Spark-companion.apk`. You can also start a build yourself with **Run workflow**.
 2. Copy the APK to the phone and open it. Allow "install unknown apps" for your file manager or browser when Android asks.
-3. Open Spark → **Settings** and add your **Gemini API key** (free at <https://aistudio.google.com/apikey>). The key is encrypted with the Android Keystore and sent only to Google. Tap **Test Gemini connection**.
+3. Open Spark → **Settings** and add your **Claude API key** (create one at <https://console.anthropic.com> → API keys). The key is encrypted with the Android Keystore and sent only to Anthropic. Tap **Test Claude**.
 4. Still in Settings, tap **Turn on** for each permission row:
    - **Microphone**: needed to hear you.
    - **Phone control**: Accessibility → *Spark phone control*. If Android says the setting is *restricted*, open **App info for Spark → ⋮ → Allow restricted settings**, then try again. Phones show this for apps installed outside the Play Store.
@@ -164,7 +161,7 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 
 ```
 app/src/main/java/com/spark/companion/
-├── brain/      Providers (Gemini, Groq, OpenRouter), image makers (Gemini, Pollinations), agent loop, persona, safety policy
+├── brain/      Claude client (Anthropic Java SDK), image maker (Pollinations), agent loop, persona, safety policy
 ├── engine/     SparkEngine: conversation, voice loop, proactive, routines runner; foreground service, tile, widget
 ├── automation/ Routines: model, store, scheduler, receivers
 ├── phone/      PhoneTools (every action), Accessibility service + overlay, screen reader, notifications
@@ -175,7 +172,7 @@ app/src/main/java/com/spark/companion/
 └── ui/         Orb, chat screen, settings
 ```
 
-The agent loop sends the conversation and tool list to Gemini, runs the functions it requests, pausing for your approval when an action is risky, feeds the results back, and repeats until Gemini answers in words (at most 24 steps per request). The app has no dependencies beyond Kotlin coroutines.
+The agent loop sends the conversation and tool list to Claude, runs the functions it requests, pausing for your approval when an action is risky, feeds the results back, and repeats until Claude answers in words (at most 24 steps per request). Dependencies: Kotlin coroutines, ML Kit face detection and Anthropic's Java SDK.
 
 ## Known limits
 
@@ -183,8 +180,8 @@ The agent loop sends the conversation and tool list to Gemini, runs the function
 - The wake word uses Android's speech recogniser in a loop, not a dedicated low-power hotword chip, so it costs some battery. On phones without offline recognition (most phones before Android 12), the recogniser may beep each time it restarts. In that case turn the wake word off from the chip under the avatar and tap the avatar instead.
 - Lip-sync follows the real voice volume where the phone allows it; otherwise it follows word timing.
 - Photo avatars animate a single picture by warping it. The face is found and straightened automatically (ML Kit, on-device). They look best with a front-facing face, eyes open and mouth closed; a face turned far to the side can't be straightened in 2D.
-- AI restyle and AI creation use Gemini image generation, which has a small free-tier quota. If it says the usage limit was hit, wait a minute, or use the photo as it is (which needs no quota and stays on the phone).
-- Gemini model names change over time. Spark lists the models your key can use and switches by itself; you can also pick one from the drop-downs in Settings.
+- Avatar pictures come from the free Pollinations image service, which can be busy; if it fails, try again in a moment.
+- Claude usage is billed to your Anthropic account. Spark uses Claude Opus 5.5 at medium effort by default; pick another model in Settings → Claude if you prefer.
 - Realistic avatars animate the face, breathing, head and posture; the arms stay where the photo has them. Illustrated avatars move their arms too. The face swap uses the front of your face only: hair and background from the photo are replaced by the avatar's own hair.
 - Games, videos and some banking apps hide their content from accessibility services, so Spark can't read or tap inside them.
 - Android 14+ may refuse to keep the microphone alive when a conversation is started from the background. If Spark stops listening behind another app, tap the orb.

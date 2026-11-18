@@ -11,17 +11,14 @@ data class ToolResult(val id: String, val name: String, val result: JSONObject)
 
 /**
  * A provider-neutral conversation turn. The agent keeps the conversation as a
- * list of these, and each [Llm] serialises them into its own wire format. This
- * is what lets the user switch between Gemini, Groq and OpenRouter.
+ * list of these, and the [Llm] (Claude) serialises them into its wire format.
  */
 sealed class Msg {
     data class User(val text: String) : Msg()
 
     /**
-     * [raw] optionally holds the provider's own response object, replayed
-     * verbatim by the same provider so opaque fields (e.g. Gemini thought
-     * signatures) survive. Other providers ignore it and rebuild from
-     * [text] and [calls].
+     * [raw] optionally holds the provider's own response object. Claude
+     * rebuilds each turn from [text] and [calls].
      */
     data class Assistant(
         val text: String,
