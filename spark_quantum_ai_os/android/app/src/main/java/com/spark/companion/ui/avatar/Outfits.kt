@@ -210,6 +210,8 @@ data class BodySpec(
     val beard: Beard = Beard.NONE,
     /** True: skin colour is taken from the uploaded face so the body matches it. */
     val skinFromFace: Boolean = false,
+    /** True: shown as a photo-realistic person (see [RealBody]) instead of drawn. */
+    val realistic: Boolean = false,
 ) {
     val outfit: Outfit get() = Outfits.byId(outfitId, gender)
 
@@ -222,6 +224,7 @@ data class BodySpec(
         .put("eyes", eyeColor)
         .put("beard", beard.name)
         .put("skinFromFace", skinFromFace)
+        .put("realistic", realistic)
 
     companion object {
         val SKINS = listOf("#FBE3D3", "#F1C9A5", "#E0AC84", "#C68B62", "#A86F4C", "#8D5A3B", "#6B4128", "#4A2C1A")
@@ -250,6 +253,7 @@ data class BodySpec(
                     eyeColor = j.optInt("eyes", d.eyeColor),
                     beard = runCatching { Beard.valueOf(j.getString("beard")) }.getOrDefault(Beard.NONE),
                     skinFromFace = j.optBoolean("skinFromFace", false),
+                    realistic = j.optBoolean("realistic", false),
                 )
             } catch (e: Exception) {
                 null

@@ -28,7 +28,7 @@ class BodyPainter(
     val spec: BodySpec,
     accent: Int,
     private val face: PhotoFace? = null,
-) : AvatarPainter(accent) {
+) : AvatarPainter(accent), StandingPainter {
 
     override val ownsHeadMotion = true
 
@@ -61,7 +61,7 @@ class BodyPainter(
     private val joints = FloatArray(12)
 
     /** Head centre in figure units, for effects drawn around the avatar. */
-    val headCenterY: Float get() = headY
+    override val headCenterY: Float get() = headY
 
     // ── Entry points ─────────────────────────────────────────────────────
 
@@ -80,7 +80,7 @@ class BodyPainter(
     }
 
     /** Draws the whole figure. The canvas is in figure space (see class docs). */
-    fun drawFigure(c: Canvas, p: Pose, t: Float, bust: Boolean = false) {
+    override fun drawFigure(c: Canvas, p: Pose, t: Float, bust: Boolean) {
         val sy = baseShoulderY - 0.012f * p.shoulders
         // The upper body leans and shifts weight around the hips; legs stay planted.
         val swayX = 0.005f * p.sway

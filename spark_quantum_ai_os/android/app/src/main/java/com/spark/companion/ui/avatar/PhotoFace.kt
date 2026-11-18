@@ -19,6 +19,17 @@ class PhotoFace(portrait: Bitmap, val landmarks: FaceLandmarks) {
     private val painter = PhotoPainter(portrait, landmarks, Color.WHITE)
     private val mask = Paint(Paint.ANTI_ALIAS_FLAG).apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN) }
 
+    /** Tints the face towards [target] skin so a swapped face matches the body it's on. */
+    fun matchSkin(target: Int) {
+        val src = skinTone
+        fun k(t: Int, s: Int) = (t.toFloat() / s.coerceAtLeast(1)).coerceIn(0.7f, 1.4f)
+        // Blend halfway: keep the person's own colouring, close most of the gap.
+        val r = 1f + (k(Color.red(target), Color.red(src)) - 1f) * 0.7f
+        val g = 1f + (k(Color.green(target), Color.green(src)) - 1f) * 0.7f
+        val b = 1f + (k(Color.blue(target), Color.blue(src)) - 1f) * 0.7f
+        painter.setFilter(android.graphics.ColorMatrixColorFilter(android.graphics.ColorMatrix().apply { setScale(r, g, b, 1f) }))
+    }
+
     /** The face's own skin colour (cheeks). */
     val skinTone: Int get() = painter.skinTone
 

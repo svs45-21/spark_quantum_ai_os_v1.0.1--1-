@@ -58,6 +58,13 @@ class AvatarView(context: Context) : View(context) {
         invalidate()
     }
 
+    /** Shows an unsaved realistic body (the studio's live preview). */
+    fun previewReal(body: android.graphics.Bitmap, face: FaceLandmarks, accent: Int, swapPortrait: android.graphics.Bitmap? = null, swapLandmarks: FaceLandmarks? = null) {
+        val swap = if (swapPortrait != null && swapLandmarks != null) PhotoFace(swapPortrait, swapLandmarks) else null
+        painter = PhotoBodyPainter(body, face, accent, swap)
+        invalidate()
+    }
+
     /** Shows an unsaved full-body avatar, optionally wearing a photo's face. */
     fun previewBody(body: BodySpec, accent: Int, portrait: android.graphics.Bitmap? = null, landmarks: FaceLandmarks? = null) {
         val face = if (portrait != null && landmarks != null) PhotoFace(portrait, landmarks) else null
@@ -87,7 +94,7 @@ class AvatarView(context: Context) : View(context) {
         val t = now / 1000f
         val s = min(width, height).toFloat()
         if (s <= 0f) return
-        val body = painter as? BodyPainter
+        val body = painter as? StandingPainter
         if (fullBody && body != null) {
             drawStanding(canvas, body, p, t)
             scheduleNext(p)
@@ -140,7 +147,7 @@ class AvatarView(context: Context) : View(context) {
     }
 
     /** A full-body avatar standing in open space: soft light, a floor shadow, no frame. */
-    private fun drawStanding(canvas: Canvas, body: BodyPainter, p: Pose, t: Float) {
+    private fun drawStanding(canvas: Canvas, body: StandingPainter, p: Pose, t: Float) {
         val color = phaseColor()
         // Figure height: room above the head for raised arms and effects.
         val h = min(height / 1.12f, width / 0.62f)
@@ -235,11 +242,17 @@ class AvatarView(context: Context) : View(context) {
         /** Painters are cached so switching avatars doesn't re-decode portraits. */
         fun painterFor(profile: AvatarProfile): AvatarPainter {
             val key = profile.id + "@" + (profile.portrait?.lastModified() ?: 0) + "@" + profile.landmarks.hashCode() +
-                "@" + profile.body.hashCode()
+                "@" + profile.body.hashCode() + "@" + (profile.realBody?.lastModified() ?: 0)
             cache[key]?.let { return it }
             if (profile.builtin != null && profile.body == null) return AvatarPainter.of(profile.builtin)
             val bitmap = profile.portrait?.let { AvatarRepository.loadPortrait(it) }
+            val real = if (profile.body?.realistic == true && profile.realFace != null) profile.realBody?.let { AvatarRepository.loadPortrait(it) } else null
             val painter = when {
+                real != null -> {
+                    // Photo-realistic body; with a swap, the portrait's face goes on it.
+                    val swap = if (profile.realSwap && bitmap != null && profile.landmarks != null) PhotoFace(bitmap, profile.landmarks) else null
+                    PhotoBodyPainter(real, profile.realFace!!, profile.accent, swap)
+                }
                 profile.body != null -> {
                     // Full body; with a portrait, its face is swapped onto the body.
                     val face = if (bitmap != null && profile.landmarks != null) PhotoFace(bitmap, profile.landmarks) else null

@@ -82,6 +82,11 @@ class AvatarStudioActivity : Activity() {
     private var outfitFromEdit = false
     private var thumbJob: Job? = null
 
+    // A realistic body made in this session, not saved yet.
+    private var pendingReal: com.spark.companion.ui.avatar.RealBody.Result? = null
+    private var pendingRealSwap = false
+    private var pendingRealOutfit: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val pad = Ui.dp(this, 20)
@@ -222,6 +227,7 @@ class AvatarStudioActivity : Activity() {
                 body = inUse.body
                 outfitTarget = inUse
                 outfitFromEdit = false
+                pendingReal = null
                 show(Screen.OUTFIT)
             }
         }
@@ -309,6 +315,7 @@ class AvatarStudioActivity : Activity() {
         faceFound = true
         editingId = profile.id
         body = profile.body
+        pendingReal = null
         name = profile.name
         personality = profile.personality
         accent = profile.accent
@@ -363,8 +370,9 @@ class AvatarStudioActivity : Activity() {
         landmarks = framed.landmarks
         faceFound = framed.faceFound
         editingId = null
-        body = pendingGender?.let { com.spark.companion.ui.avatar.BodySpec.defaultFor(it).copy(skinFromFace = true) }
+        body = pendingGender?.let { com.spark.companion.ui.avatar.BodySpec.defaultFor(it).copy(skinFromFace = true, realistic = true) }
         pendingGender = null
+        pendingReal = null
         if (name.isBlank()) name = "My avatar"
     }
 
@@ -408,7 +416,7 @@ class AvatarStudioActivity : Activity() {
     /** Asks Gemini for a portrait, then moves to the editor. */
     /** Picks the image generator: Pollinations (free) unless restyling a photo. */
     private fun imageGen(needsPhoto: Boolean): ImageGen {
-        val gemini = GeminiImageGen({ engine.settings.apiKey }, { engine.settings.imageModel }) { engine.settings.imageModel = it }
+        val gemini = GeminiImageGen({ engine.settings.apiKey }, { engine.settings.imageModel }, onModelSwitch = { engine.settings.imageModel = it })
         if (needsPhoto) return gemini
         return if (engine.settings.imageProvider == "pollinations") PollinationsImageGen() else gemini
     }
@@ -440,7 +448,12 @@ class AvatarStudioActivity : Activity() {
         val preview = AvatarView(this).apply { awake = true }
         fun refreshPreview() {
             val b = body
-            if (b != null) {
+            val real = pendingReal
+            if (b != null && b.realistic && real != null && pendingRealOutfit == b.outfitId) {
+                preview.fullBody = true
+                if (pendingRealSwap) preview.previewReal(real.bitmap, real.face, accent, bitmap, landmarks)
+                else preview.previewReal(real.bitmap, real.face, accent)
+            } else if (b != null) {
                 preview.fullBody = true
                 preview.previewBody(b, accent, bitmap, landmarks)
             } else {
@@ -509,7 +522,8 @@ class AvatarStudioActivity : Activity() {
                 isChecked = body?.gender == g
                 setOnCheckedChangeListener { _, checked ->
                     if (!checked || body?.gender == g) return@setOnCheckedChangeListener
-                    body = g?.let { com.spark.companion.ui.avatar.BodySpec.defaultFor(it).copy(skinFromFace = true) }
+                    body = g?.let { com.spark.companion.ui.avatar.BodySpec.defaultFor(it).copy(skinFromFace = true, realistic = true) }
+                    pendingReal = null
                     show(Screen.EDIT)
                 }
             })
@@ -606,8 +620,24 @@ class AvatarStudioActivity : Activity() {
             awake = true
             fullBody = true
         }
+        // The realistic picture for the chosen outfit: made just now, or saved earlier.
+        fun realFor(spec: com.spark.companion.ui.avatar.BodySpec): Triple<Bitmap, FaceLandmarks, Boolean>? {
+            val made = pendingReal
+            if (made != null && pendingRealOutfit == spec.outfitId) return Triple(made.bitmap, made.face, pendingRealSwap)
+            val saved = target?.takeIf { !outfitFromEdit && it.realOutfit == spec.outfitId && it.realFace != null } ?: return null
+            val bmp = saved.realBody?.let { AvatarRepository.loadPortrait(it) } ?: return null
+            return Triple(bmp, saved.realFace!!, saved.realSwap)
+        }
+        val currentReal = if (start.realistic) realFor(start) else null
         fun refresh() {
-            body?.let { preview.previewBody(it, tint, faceBitmap, faceMarks) }
+            val spec = body ?: return
+            val real = if (spec.realistic) currentReal else null
+            if (real != null) {
+                if (real.third && faceBitmap != null && faceMarks != null) preview.previewReal(real.first, real.second, tint, faceBitmap, faceMarks)
+                else preview.previewReal(real.first, real.second, tint)
+            } else {
+                preview.previewBody(spec, tint, faceBitmap, faceMarks)
+            }
         }
         refresh()
         preview.setOnClickListener {
@@ -616,6 +646,16 @@ class AvatarStudioActivity : Activity() {
             toast(preview.mood.tag.replaceFirstChar { it.uppercase() })
         }
         content.addView(preview, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 340)))
+        if (start.realistic) {
+            if (currentReal == null) {
+                note("This is a drawn preview. Create the realistic photo of this outfit: a real-looking person, head to toe" +
+                    (if (faceBitmap != null) ", with your face" else "") + ". Free, takes about 20–40 seconds.")
+                button("Create realistic photo", primary = true) { makeReal(faceBitmap) }
+            } else {
+                note("Realistic photo ready. Not quite right? Each try gives a new picture.")
+                button("Try another photo") { makeReal(faceBitmap) }
+            }
+        }
 
         // Hair, colours and beard.
         fun chips(label: String, items: List<Pair<String, Boolean>>, onPick: (Int) -> Unit) {
@@ -659,6 +699,10 @@ class AvatarStudioActivity : Activity() {
                 refresh()
             }
         }
+        chips("STYLE", listOf("Realistic (photo)" to b.realistic, "Illustrated (full gestures)" to !b.realistic)) {
+            update(b.copy(realistic = it == 0), true)
+        }
+        if (b.realistic) note("Realistic: a real-looking person whose face talks, blinks and shows feelings, and whose body breathes and sways. Illustrated: drawn, but waves and gestures with the arms.")
         val hairs = com.spark.companion.ui.avatar.HairStyle.values().filter { it.gender == null || it.gender == b.gender }
         chips("HAIR", hairs.map { it.label to (it == b.hair) }) { update(b.copy(hair = hairs[it]), true) }
         if (faceBitmap != null) {
@@ -739,13 +783,48 @@ class AvatarStudioActivity : Activity() {
                 return@button
             }
             val profile = outfitTarget ?: return@button
+            if (chosen.realistic && realFor(chosen) == null) {
+                toast("Create the realistic photo of this outfit first, or switch to Illustrated.")
+                return@button
+            }
             working("Saving…") {
-                val saved = withContext(Dispatchers.IO) { repo.saveBody(profile, chosen) }
+                var saved = withContext(Dispatchers.IO) { repo.saveBody(profile, chosen) }
+                val real = pendingReal
+                if (chosen.realistic && real != null && pendingRealOutfit == chosen.outfitId) {
+                    saved = withContext(Dispatchers.IO) { repo.saveRealBody(saved, real, pendingRealSwap, chosen.outfitId) }
+                    pendingReal = null
+                }
                 AvatarView.clearCache()
                 engine.refreshSettings()
                 toast("${saved.name} is wearing ${chosen.outfit.name}.")
                 show(Screen.HOME)
             }
+        }
+    }
+
+    /**
+     * Makes a photo-realistic picture of the current body and outfit. With your
+     * photo and a Gemini key, Gemini keeps your likeness; otherwise the free
+     * image service draws the person and your face is swapped on.
+     */
+    private fun makeReal(facePhoto: Bitmap?) {
+        val spec = body ?: return
+        val settings = engine.settings
+        val gemini = com.spark.companion.brain.GeminiImageGen({ settings.apiKey }, { settings.imageModel }, { settings.imageModel = it }, aspectRatio = "9:16")
+        val free = PollinationsImageGen(PollinationsImageGen.TALL_WIDTH, PollinationsImageGen.TALL_HEIGHT)
+        val tryGeminiFirst = settings.apiKey.isNotBlank() && (facePhoto != null || settings.imageProvider == "gemini")
+        working("Creating a realistic photo… (20–40 seconds)") {
+            val (result, swapped) = try {
+                if (!tryGeminiFirst) throw LlmException("skip")
+                com.spark.companion.ui.avatar.RealBody.create(gemini, spec, facePhoto) to false
+            } catch (e: LlmException) {
+                // Free fallback (also when Gemini's image quota is used up).
+                com.spark.companion.ui.avatar.RealBody.create(free, spec, null) to (facePhoto != null)
+            }
+            pendingReal = result
+            pendingRealSwap = swapped
+            pendingRealOutfit = spec.outfitId
+            show(Screen.OUTFIT)
         }
     }
 
@@ -786,6 +865,12 @@ class AvatarStudioActivity : Activity() {
                     body = body,
                 )
             }
+            val real = pendingReal
+            val b = body
+            if (b != null && b.realistic && real != null && pendingRealOutfit == b.outfitId) {
+                withContext(Dispatchers.IO) { repo.saveRealBody(saved, real, pendingRealSwap, b.outfitId) }
+            }
+            pendingReal = null
             AvatarView.clearCache()
             engine.settings.avatar = saved.id
             engine.refreshSettings()

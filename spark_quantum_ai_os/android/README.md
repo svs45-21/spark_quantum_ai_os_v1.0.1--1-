@@ -12,6 +12,8 @@ Spark appears as an **animated avatar**. Pick Nova (a sleek robot), Mira (a warm
 
 Each has **50 outfits**: everyday wear, office suits, sarees, lehengas, anarkalis, kurtas, sherwanis, uniforms, sportswear, party wear, winter coats and more, plus hair styles, hair, skin and eye colours, and beards. Change them under Avatar Studio → **Change outfit & look**.
 
+**Realistic or illustrated:** in Avatar Studio → Change outfit & look, choose **Realistic (photo)** and tap **Create realistic photo**. An image model makes a real-looking person, head to toe, in that outfit. The plain backdrop is removed so they stand in open space. Their face then blinks, talks with real mouth shapes and shows every feeling, and the body breathes, sways and nods. It's free with the Pollinations image service (no key); with your photo and a Gemini key that has image quota, Gemini keeps your likeness. **Illustrated** avatars are drawn instead, and can also wave and gesture with their arms.
+
 **Put your own face on a body:** Avatar Studio → **Full-body avatar with my face**, pick female or male, and choose a photo. Your face is found, lined up with the body's head and blended in with soft edges; the skin and hair colours are matched to your photo. Your face still blinks, talks and shows every feeling.
 
 ### Make your own avatar
@@ -183,6 +185,6 @@ The agent loop sends the conversation and tool list to Gemini, runs the function
 - Photo avatars animate a single picture by warping it. The face is found and straightened automatically (ML Kit, on-device). They look best with a front-facing face, eyes open and mouth closed; a face turned far to the side can't be straightened in 2D.
 - AI restyle and AI creation use Gemini image generation, which has a small free-tier quota. If it says the usage limit was hit, wait a minute, or use the photo as it is (which needs no quota and stays on the phone).
 - Gemini model names change over time. Spark lists the models your key can use and switches by itself; you can also pick one from the drop-downs in Settings.
-- Full-body avatars are drawn by the app (not photos), so they stay smooth and animate freely. The face swap uses the front of your face only: hair and background from the photo are replaced by the avatar's own hair.
+- Realistic avatars animate the face, breathing, head and posture; the arms stay where the photo has them. Illustrated avatars move their arms too. The face swap uses the front of your face only: hair and background from the photo are replaced by the avatar's own hair.
 - Games, videos and some banking apps hide their content from accessibility services, so Spark can't read or tap inside them.
 - Android 14+ may refuse to keep the microphone alive when a conversation is started from the background. If Spark stops listening behind another app, tap the orb.

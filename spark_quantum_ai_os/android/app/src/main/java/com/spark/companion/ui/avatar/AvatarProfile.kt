@@ -28,6 +28,14 @@ data class AvatarProfile(
     val landmarks: FaceLandmarks? = null,
     /** Set for full-body avatars: body type, outfit, hair and skin. */
     val body: BodySpec? = null,
+    /** A photo-realistic body picture (backdrop removed), when one was made. */
+    val realBody: File? = null,
+    /** Where the face is in [realBody], as fractions of its width and height. */
+    val realFace: FaceLandmarks? = null,
+    /** True when [portrait]'s face is swapped onto [realBody]. */
+    val realSwap: Boolean = false,
+    /** The outfit [realBody] shows. */
+    val realOutfit: String? = null,
 ) {
     val custom: Boolean get() = builtin == null
 
@@ -77,7 +85,38 @@ class AvatarRepository(context: Context) {
         } catch (e: Exception) {
             null
         }
-        return if (saved != null && saved.gender == profile.body.gender) profile.copy(body = saved) else profile
+        val withBody = if (saved != null && saved.gender == profile.body.gender) profile.copy(body = saved) else profile
+        return withReal(withBody, File(root, "builtin-${profile.builtin.name}-real.png"), File(root, "builtin-${profile.builtin.name}-real.json"))
+    }
+
+    private fun withReal(profile: AvatarProfile, png: File, json: File): AvatarProfile {
+        if (!png.exists() || !json.exists()) return profile
+        return try {
+            val j = JSONObject(json.readText())
+            profile.copy(
+                realBody = png,
+                realFace = FaceLandmarks.fromJson(j.getJSONObject("face")),
+                realSwap = j.optBoolean("swap", false),
+                realOutfit = j.optString("outfit").ifEmpty { null },
+            )
+        } catch (e: Exception) {
+            profile
+        }
+    }
+
+    private fun realFiles(profile: AvatarProfile): Pair<File, File>? = when {
+        profile.builtin != null -> File(root, "builtin-${profile.builtin.name}-real.png") to File(root, "builtin-${profile.builtin.name}-real.json")
+        profile.id.startsWith("custom:") -> File(root, profile.id.removePrefix("custom:")).let { File(it, "real.png") to File(it, "real.json") }
+        else -> null
+    }
+
+    /** Saves a realistic body picture for an avatar and returns the updated profile. */
+    fun saveRealBody(profile: AvatarProfile, result: RealBody.Result, swap: Boolean, outfitId: String): AvatarProfile {
+        val (png, json) = realFiles(profile) ?: return profile
+        png.parentFile?.mkdirs()
+        png.outputStream().use { result.bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        json.writeText(JSONObject().put("face", result.face.toJson()).put("swap", swap).put("outfit", outfitId).toString())
+        return withReal(profile, png, json)
     }
 
     /** Saves a new outfit/hair/skin for an avatar and returns the updated profile. */
@@ -128,7 +167,7 @@ class AvatarRepository(context: Context) {
             portrait = portrait,
             landmarks = FaceLandmarks.fromJson(meta.getJSONObject("landmarks")),
             body = BodySpec.fromJson(meta.optJSONObject("body")),
-        )
+        ).let { withReal(it, File(dir, "real.png"), File(dir, "real.json")) }
     } catch (e: Exception) {
         null
     }

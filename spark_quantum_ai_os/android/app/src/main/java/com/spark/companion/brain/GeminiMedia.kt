@@ -41,7 +41,7 @@ object GeminiMedia {
     fun describePrompt(description: String, style: ImageStyle): String =
         "Create ${style.look} of this character: ${description.trim()}. $FRAMING"
 
-    fun imageRequest(prompt: String, image: ByteArray?, mimeType: String = "image/jpeg"): JSONObject {
+    fun imageRequest(prompt: String, image: ByteArray?, mimeType: String = "image/jpeg", aspectRatio: String? = null): JSONObject {
         val parts = JSONArray()
         if (image != null) {
             parts.put(
@@ -54,7 +54,12 @@ object GeminiMedia {
         parts.put(JSONObject().put("text", prompt))
         return JSONObject()
             .put("contents", JSONArray().put(JSONObject().put("role", "user").put("parts", parts)))
-            .put("generationConfig", JSONObject().put("responseModalities", JSONArray().put("TEXT").put("IMAGE")))
+            .put(
+                "generationConfig",
+                JSONObject().put("responseModalities", JSONArray().put("TEXT").put("IMAGE")).apply {
+                    if (aspectRatio != null) put("imageConfig", JSONObject().put("aspectRatio", aspectRatio))
+                }
+            )
     }
 
     /** Extracts the generated image bytes, or explains why there are none. */

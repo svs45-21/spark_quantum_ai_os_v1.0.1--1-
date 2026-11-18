@@ -41,6 +41,11 @@ class PhotoPainter(portrait: Bitmap, val landmarks: FaceLandmarks, accent: Int) 
         )
     }
 
+    /** Colour adjustment for the face (used to match a body's skin). */
+    fun setFilter(filter: android.graphics.ColorFilter?) {
+        bitmapPaint.colorFilter = filter
+    }
+
     /** Size of the portrait in unit space (it spans -frame/2..frame/2). */
     val frame: Float get() = warp.frame
 
@@ -135,8 +140,8 @@ class PhotoPainter(portrait: Bitmap, val landmarks: FaceLandmarks, accent: Int) 
             path.moveTo(pt[0], pt[1])
             path.quadTo(midX, midY + 0.02f * d * warp.frame, pt2[0], pt2[1])
             val strength = (shut - 0.6f) / 0.4f
-            c.drawPath(path, line(alpha(darken(lidColors[side], 0.5f), 0.55f * strength), 0.07f * d * warp.frame))
-            c.drawPath(path, line(alpha(darken(lidColors[side], 0.25f), 0.85f * strength), 0.03f * d * warp.frame))
+            c.drawPath(path, line(alpha(darken(lidColors[side], 0.5f), 0.3f * strength), 0.045f * d * warp.frame))
+            c.drawPath(path, line(alpha(darken(lidColors[side], 0.35f), 0.7f * strength), 0.018f * d * warp.frame))
         }
     }
 
