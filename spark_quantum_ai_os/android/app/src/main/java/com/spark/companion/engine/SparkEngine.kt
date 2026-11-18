@@ -383,7 +383,7 @@ suspend fun testGemini(): String = try {
             val reply = agent.respond(
                 userText = text,
                 system = { systemPrompt(voice) },
-                tools = ToolCatalog.declarations(settings.desktopLinked, settings.n8nConfigured),
+                tools = availableTools(),
                 confirm = { request -> confirm(request, voice) },
                 listener = listener,
             )
@@ -416,6 +416,7 @@ suspend fun testGemini(): String = try {
                 now = SimpleDateFormat("EEEE, d MMMM yyyy, h:mm a", Locale.ENGLISH).format(Date()),
                 memories = facts,
                 screenControl = SparkAccessibilityService.instance != null,
+                screenControlAvailable = com.spark.companion.BuildConfig.FULL_FEATURES,
                 desktopLink = settings.desktopLinked,
                 workflows = settings.n8nConfigured,
                 voice = voice,
@@ -533,6 +534,18 @@ suspend fun testGemini(): String = try {
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────
+
+    /** The tools this build offers the model. The Play build has no screen control. */
+    private fun availableTools(): org.json.JSONArray {
+        val all = ToolCatalog.declarations(settings.desktopLinked, settings.n8nConfigured)
+        if (com.spark.companion.BuildConfig.FULL_FEATURES) return all
+        val out = org.json.JSONArray()
+        for (i in 0 until all.length()) {
+            val decl = all.getJSONObject(i)
+            if (decl.optString("name") !in ToolCatalog.SCREEN_TOOLS) out.put(decl)
+        }
+        return out
+    }
 
     companion object {
         const val SLEEP_AFTER_MS = 15_000L

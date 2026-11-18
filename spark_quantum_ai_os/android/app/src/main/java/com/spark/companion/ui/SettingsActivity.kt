@@ -382,7 +382,7 @@ class SettingsActivity : Activity() {
         permissionRow("Microphone", "So Spark can hear you", has(Manifest.permission.RECORD_AUDIO)) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 1)
         }
-        permissionRow(
+        if (com.spark.companion.BuildConfig.FULL_FEATURES) permissionRow(
             "Phone control", "Read the screen and tap, type and scroll in other apps (Accessibility)",
             SparkAccessibilityService.instance != null
         ) { open(SystemSettings.ACTION_ACCESSIBILITY_SETTINGS) }
@@ -402,7 +402,7 @@ class SettingsActivity : Activity() {
         permissionRow("Phone calls", "Place calls for you (after you confirm)", has(Manifest.permission.CALL_PHONE)) {
             requestPermissions(arrayOf(Manifest.permission.CALL_PHONE), 1)
         }
-        permissionRow("SMS", "Send texts for you (after you confirm)", has(Manifest.permission.SEND_SMS)) {
+        if (com.spark.companion.BuildConfig.FULL_FEATURES) permissionRow("SMS", "Send texts for you (after you confirm)", has(Manifest.permission.SEND_SMS)) {
             requestPermissions(arrayOf(Manifest.permission.SEND_SMS), 1)
         }
         if (Build.VERSION.SDK_INT >= 33) {

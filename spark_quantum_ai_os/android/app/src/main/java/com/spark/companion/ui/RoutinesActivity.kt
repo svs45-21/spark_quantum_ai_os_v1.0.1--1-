@@ -164,7 +164,9 @@ class RoutinesActivity : Activity() {
         timeViews.addView(timeBtn)
         timeViews.addView(Ui.text(this, "Days (none = every day)", 12.5f, Ui.TEXT_DIM).apply { setPadding(0, Ui.dp(this@RoutinesActivity, 8), 0, Ui.dp(this@RoutinesActivity, 4)) })
         timeViews.addView(dayRow)
-        for ((t, label) in listOf(Trigger.TIME to "At a time", Trigger.CHARGER to "When I plug in the charger", Trigger.SMS to "When a text arrives")) {
+        val triggers = mutableListOf(Trigger.TIME to "At a time", Trigger.CHARGER to "When I plug in the charger")
+        if (com.spark.companion.BuildConfig.FULL_FEATURES) triggers += Trigger.SMS to "When a text arrives"
+        for ((t, label) in triggers) {
             triggerRow.addView(android.widget.RadioButton(this).apply {
                 id = View.generateViewId()
                 text = label

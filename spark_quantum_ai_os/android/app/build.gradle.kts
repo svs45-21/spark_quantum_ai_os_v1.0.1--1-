@@ -5,14 +5,36 @@ plugins {
 
 android {
     namespace = "com.spark.companion"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.spark.companion"
         minSdk = 26
-        targetSdk = 34
+        // Google Play requires API 36 for new apps and updates since Aug 31, 2026.
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
+    }
+
+    buildFeatures {
+        buildConfig = true
+    }
+
+    // Two builds from one codebase:
+    //  - play: passes Google Play policy. No screen control (Play bans the
+    //    Accessibility API for autonomous agents) and no SMS permissions
+    //    (texts are drafted in the messaging app instead).
+    //  - full: every feature, distributed as a direct APK.
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("play") {
+            dimension = "distribution"
+            buildConfigField("boolean", "FULL_FEATURES", "false")
+        }
+        create("full") {
+            dimension = "distribution"
+            buildConfigField("boolean", "FULL_FEATURES", "true")
+        }
     }
 
     // Optional stable signing key, supplied by CI secrets (see android/README.md).

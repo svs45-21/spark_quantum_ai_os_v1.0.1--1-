@@ -20,6 +20,21 @@ class SparkApp : Application() {
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_REMINDERS, "Reminders", NotificationManager.IMPORTANCE_HIGH)
         )
+        registerChargerTrigger()
+    }
+
+    /**
+     * ACTION_POWER_CONNECTED is not delivered to manifest receivers (Android 8+),
+     * so charger routines listen at runtime while Spark is running.
+     */
+    private fun registerChargerTrigger() {
+        val filter = android.content.IntentFilter(android.content.Intent.ACTION_POWER_CONNECTED)
+        val receiver = com.spark.companion.automation.RoutineReceiver()
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(receiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(receiver, filter)
+        }
     }
 
     companion object {

@@ -8,6 +8,8 @@ object Persona {
         val now: String,
         val memories: List<String>,
         val screenControl: Boolean,
+        /** False in the Play build, which has no screen control at all. */
+        val screenControlAvailable: Boolean = true,
         val desktopLink: Boolean,
         val workflows: Boolean = false,
         val voice: Boolean,
@@ -50,7 +52,13 @@ Doing things on the phone
         append("\n\n")
         if (c.avatar.isNotBlank()) append(c.avatar).append("\n\n")
         if (c.languages.isNotEmpty()) append("$name speaks: ").append(c.languages.joinToString(", ")).append(".\n\n")
-        if (c.screenControl) {
+        if (!c.screenControlAvailable) {
+            append(
+                """
+This version of Spark can't operate other apps' screens. Use the direct tools (alarms, calls, messages as drafts, navigation, media, camera and so on). If a request would need tapping inside another app, say plainly that this version can't do that and offer the closest thing you can do.
+""".trimIndent()
+            )
+        } else if (c.screenControl) {
             append(
                 """
 Screen control is ON. To work inside an app: open_app, then read_screen, then tap / type_text / scroll using the element numbers, reading the screen again after it changes. Stop and tell $name if you are not making progress after a few tries.

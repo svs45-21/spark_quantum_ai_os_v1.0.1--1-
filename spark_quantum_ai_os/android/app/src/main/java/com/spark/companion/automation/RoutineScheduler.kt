@@ -33,7 +33,6 @@ class RoutineScheduler(private val context: Context) {
         val intent = Intent(context, RoutineReceiver::class.java)
             .setAction(RoutineReceiver.ACTION_FIRE)
             .putExtra(RoutineReceiver.EXTRA_ID, id)
-            .setData(android.net.Uri.parse("spark://routine/$id"))
         return PendingIntent.getBroadcast(
             context, id.hashCode(), intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT

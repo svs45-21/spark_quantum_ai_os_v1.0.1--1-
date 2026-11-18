@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The Play Store build removes what Google Play's policies don't allow for
+  this kind of app: SMS permissions (only default SMS apps may hold them) and
+  the Accessibility service (banned for apps that act autonomously).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.SEND_SMS" tools:node="remove" />
+    <uses-permission android:name="android.permission.RECEIVE_SMS" tools:node="remove" />
+
+    <application>
+        <service
+            android:name=".phone.SparkAccessibilityService"
+            tools:node="remove" />
+        <receiver
+            android:name=".automation.SmsRoutineReceiver"
+            tools:node="remove" />
+    </application>
+</manifest>

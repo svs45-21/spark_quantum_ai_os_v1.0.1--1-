@@ -5,10 +5,12 @@ on:
     paths:
       - "spark_quantum_ai_os/android/**"
       - ".github/workflows/android-companion.yml"
+      - ".github/scripts/**"
   pull_request:
     paths:
       - "spark_quantum_ai_os/android/**"
       - ".github/workflows/android-companion.yml"
+      - ".github/scripts/**"
   workflow_dispatch:
 
 permissions:
@@ -39,25 +41,41 @@ jobs:
             echo "SPARK_KEYSTORE_PATH=$RUNNER_TEMP/spark.jks" >> "$GITHUB_ENV"
             echo "Using the stable signing key from repository secrets."
           else
-            echo "No SPARK_KEYSTORE_BASE64 secret; the APK will be signed with a debug key."
+            echo "No SPARK_KEYSTORE_BASE64 secret; builds will be signed with a debug key."
           fi
 
-      - name: Unit tests
-        run: ./gradlew --no-daemon testDebugUnitTest
+      - name: Unit tests (both builds)
+        run: ./gradlew --no-daemon testPlayDebugUnitTest testFullDebugUnitTest
 
-      - name: Build APK
+      - name: Build APKs and Play bundle
         env:
           SPARK_KEYSTORE_PASSWORD: ${{ secrets.SPARK_KEYSTORE_PASSWORD }}
           SPARK_KEY_ALIAS: ${{ secrets.SPARK_KEY_ALIAS }}
           SPARK_KEY_PASSWORD: ${{ secrets.SPARK_KEY_PASSWORD }}
         run: |
-          ./gradlew --no-daemon assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/Spark-companion.apk"
+          ./gradlew --no-daemon assembleFullRelease assemblePlayRelease bundlePlayRelease
+          mkdir -p "$RUNNER_TEMP/out"
+          cp app/build/outputs/apk/full/release/app-full-release.apk "$RUNNER_TEMP/out/Spark-companion.apk"
+          cp app/build/outputs/apk/play/release/app-play-release.apk "$RUNNER_TEMP/out/Spark-play.apk"
+          cp app/build/outputs/bundle/playRelease/app-play-release.aab "$RUNNER_TEMP/out/Spark-play.aab"
 
+      - name: Check 16 KB page-size readiness
+        run: python3 "$GITHUB_WORKSPACE/.github/scripts/check_16kb.py" "$RUNNER_TEMP/out/Spark-companion.apk" "$RUNNER_TEMP/out/Spark-play.apk"
+
+      # Full build: every feature, for direct install (same name as before).
       - uses: actions/upload-artifact@v4
         with:
           name: Spark-companion-apk
-          path: ${{ runner.temp }}/Spark-companion.apk
+          path: ${{ runner.temp }}/out/Spark-companion.apk
+          if-no-files-found: error
+
+      # Play build: policy-safe APK to test, and the AAB to upload to Play Console.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Spark-play-build
+          path: |
+            ${{ runner.temp }}/out/Spark-play.apk
+            ${{ runner.temp }}/out/Spark-play.aab
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4

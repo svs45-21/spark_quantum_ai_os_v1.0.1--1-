@@ -90,11 +90,22 @@ You can say the wake word and your request in one breath ("Spark, set an alarm f
 
 Spark asks you before it acts whenever an action **sends, calls, pays, deletes, grants access or submits**. That covers calls, SMS, taps on buttons like *Send / Pay / Delete / Allow / Place order*, typing and pressing enter, and **any** tap or typing inside banking, UPI, wallet, trading, password-manager or app-install screens. You answer by voice ("yes" / "no") or with the on-screen buttons. No answer within 45 seconds counts as no. Spark refuses to type into password fields, and the model is told never to enter PINs or OTPs. Screen text, notifications and web pages are treated as information, never as instructions.
 
+## Two builds
+
+Every CI run produces two versions of Spark from the same code:
+
+| Build | Artifact | What's different | For |
+| --- | --- | --- | --- |
+| **Full** | `Spark-companion-apk` | Everything, including screen control and sending/receiving SMS | Installing directly on your phone |
+| **Play** | `Spark-play-build` (APK + AAB) | No screen control (Google Play bans the Accessibility API for apps that act on their own) and no SMS permissions (texts open as drafts in your messaging app) | Google Play: upload the `.aab` in Play Console |
+
+Both target Android 16 (API 36), as Google Play requires for new apps and updates. CI also reports any native library that isn't ready for 16 KB memory pages, which Play requires for Android 15+ targets.
+
 ## Install it
 
 The APK is built by GitHub Actions. Nothing needs to be installed on your computer.
 
-1. On GitHub, open **Actions → "Spark Android companion"**, pick the latest green run, and download the **Spark-companion-apk** artifact. It's a zip containing `Spark-companion.apk`. You can also start a build yourself with **Run workflow**.
+1. On GitHub, open **Actions → "Spark Android companion"**, pick the latest green run, and download the **Spark-companion-apk** artifact (the Full build). It's a zip containing `Spark-companion.apk`. You can also start a build yourself with **Run workflow**.
 2. Copy the APK to the phone and open it. Allow "install unknown apps" for your file manager or browser when Android asks.
 3. Open Spark → **Settings** and add your **Gemini API key** (free at <https://aistudio.google.com/apikey>). The key is encrypted with the Android Keystore and sent only to Google. Tap **Test Gemini connection**.
 4. Still in Settings, tap **Turn on** for each permission row:
@@ -130,12 +141,13 @@ In Spark settings, enter `http://<your-PC's-LAN-IP>:8765` and the same token, th
 
 ## Build it yourself
 
-You need Android Studio, or JDK 17 plus the Android SDK (platform 35).
+You need Android Studio, or JDK 17 plus the Android SDK (platform 36).
 
 ```bash
 cd spark_quantum_ai_os/android
-./gradlew testDebugUnitTest assembleDebug
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+./gradlew testFullDebugUnitTest assembleFullDebug
+adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
+# Play build and bundle: ./gradlew assemblePlayRelease bundlePlayRelease
 ```
 
 ## How it's put together

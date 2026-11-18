@@ -47,6 +47,9 @@ object ToolCatalog {
         return decl
     }
 
+    /** Tools that drive other apps' screens through the Accessibility service. */
+    val SCREEN_TOOLS = setOf("read_screen", "tap", "type_text", "scroll", "press_button", "wait")
+
     val names: List<String> by lazy {
         val all = declarations(includeDesktopLink = true, includeWorkflow = true)
         (0 until all.length()).map { all.getJSONObject(it).getString("name") }

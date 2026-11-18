@@ -94,17 +94,47 @@ class AvatarStudioActivity : Activity() {
         super.onDestroy()
     }
 
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
+    /** Back steps through the studio's screens before leaving it. */
+    private fun goBack(): Boolean {
         when (screen) {
-            Screen.HOME -> @Suppress("DEPRECATION") super.onBackPressed()
+            Screen.HOME -> return false
             Screen.EDIT -> show(if (editingId != null) Screen.HOME else if (photo != null) Screen.PHOTO else Screen.DESCRIBE)
             else -> show(Screen.HOME)
         }
+        return true
+    }
+
+    // Android 13+ (and always on Android 16) delivers back through
+    // OnBackInvokedCallback instead of onBackPressed. The callback is only
+    // registered while there is a studio screen to go back to, so on the home
+    // screen back leaves the activity normally (and the system animation shows).
+    private val backCallback: Any? =
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU)
+            android.window.OnBackInvokedCallback { goBack() } else null
+    private var backRegistered = false
+
+    private fun syncBackCallback() {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) return
+        val cb = backCallback as android.window.OnBackInvokedCallback
+        val want = screen != Screen.HOME
+        if (want && !backRegistered) {
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, cb)
+            backRegistered = true
+        } else if (!want && backRegistered) {
+            onBackInvokedDispatcher.unregisterOnBackInvokedCallback(cb)
+            backRegistered = false
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        // Android 12 and older.
+        if (!goBack()) @Suppress("DEPRECATION") super.onBackPressed()
     }
 
     private fun show(next: Screen) {
         screen = next
+        syncBackCallback()
         previewJob?.cancel()
         content.removeAllViews()
         when (next) {
