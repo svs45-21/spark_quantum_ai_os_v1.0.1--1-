@@ -13,11 +13,16 @@ class OpenAiCompatClient(
     private val providerLabel: String,
     private val endpoint: () -> String,
     private val apiKey: () -> String,
-    private val model: () -> String,
-    private val defaultModel: String,
+    model: () -> String,
+    defaultModel: String,
     private val extraHeaders: Map<String, String> = emptyMap(),
     private val requiresKey: Boolean = true,
+    private val modelsUrl: () -> String = { ModelCatalog.modelsUrlFor(endpoint()) },
+    private val pick: (List<ModelCatalog.ModelInfo>) -> String? = ModelCatalog::pickLocal,
 ) : Llm {
+    /** Saves a replacement model when the configured one has been retired. */
+    var onModelSwitch: (String) -> Unit = {}
+    private val models = ModelSwitch({ model().trim().ifBlank { defaultModel } }, { onModelSwitch(it) })
 
     override suspend fun generate(system: String, history: List<Msg>, tools: JSONArray): LlmReply {
         val key = apiKey().trim()
@@ -28,19 +33,26 @@ class OpenAiCompatClient(
         if (url.isEmpty()) {
             throw LlmException("No $providerLabel server address yet. Add one in Spark settings.")
         }
-        val body = buildRequest(system, history, tools, model().ifBlank { defaultModel }).toString()
-        val reply = OpenAiHttp.post(url, key, body, extraHeaders, providerLabel)
+        val discover: suspend () -> String? = {
+            pick(ModelCatalog.listOpenAi(modelsUrl(), key, providerLabel))
+        }
+        val reply = models.run(discover) { m ->
+            if (m.isBlank()) throw ModelUnavailableException("No $providerLabel model chosen yet.")
+            OpenAiHttp.post(url, key, buildRequest(system, history, tools, m).toString(), extraHeaders, providerLabel)
+        }
         return parseResponse(reply.toString(), providerLabel)
     }
 
     companion object {
         fun groq(apiKey: () -> String, model: () -> String) = OpenAiCompatClient(
-            "Groq", { "https://api.groq.com/openai/v1/chat/completions" }, apiKey, model, DEFAULT_GROQ_MODEL
+            "Groq", { "https://api.groq.com/openai/v1/chat/completions" }, apiKey, model, DEFAULT_GROQ_MODEL,
+            modelsUrl = { ModelCatalog.GROQ_MODELS_URL }, pick = ModelCatalog::pickGroq,
         )
 
         fun openRouter(apiKey: () -> String, model: () -> String) = OpenAiCompatClient(
             "OpenRouter", { "https://openrouter.ai/api/v1/chat/completions" }, apiKey, model, DEFAULT_OPENROUTER_MODEL,
-            mapOf("HTTP-Referer" to "https://spark.companion", "X-Title" to "Spark")
+            mapOf("HTTP-Referer" to "https://spark.companion", "X-Title" to "Spark"),
+            modelsUrl = { ModelCatalog.OPENROUTER_MODELS_URL }, pick = ModelCatalog::pickOpenRouter,
         )
 
         /** Ollama exposes an OpenAI-compatible endpoint; no key needed. */
@@ -62,8 +74,9 @@ class OpenAiCompatClient(
             else "$u/v1/chat/completions"
         }
 
-        const val DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
-        const val DEFAULT_OPENROUTER_MODEL = "meta-llama/llama-3.3-70b-instruct:free"
+        // If a provider retires these, Spark lists the key's models and switches by itself.
+        const val DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b"
+        const val DEFAULT_OPENROUTER_MODEL = "openai/gpt-oss-120b:free"
         const val DEFAULT_OLLAMA_MODEL = "llama3.1"
 
         /** Converts the neutral tool declarations to OpenAI's `tools` array. */

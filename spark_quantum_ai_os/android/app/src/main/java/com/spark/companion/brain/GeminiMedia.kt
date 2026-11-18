@@ -12,7 +12,7 @@ import java.util.Base64
 object GeminiMedia {
 
     const val DEFAULT_IMAGE_MODEL = "gemini-2.5-flash-image"
-    const val DEFAULT_TTS_MODEL = "gemini-2.5-flash-preview-tts"
+    const val DEFAULT_TTS_MODEL = "gemini-3.8-flash-tts"
 
     /** Looks the avatar studio offers when converting or creating a portrait. */
     enum class ImageStyle(val label: String, val look: String) {

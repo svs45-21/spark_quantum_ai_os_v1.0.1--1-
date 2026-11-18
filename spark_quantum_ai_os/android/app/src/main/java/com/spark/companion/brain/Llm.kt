@@ -35,7 +35,13 @@ sealed class Msg {
 /** A model turn: the assistant message to store, plus its text and tool calls. */
 data class LlmReply(val assistant: Msg.Assistant, val text: String, val calls: List<ToolCall>)
 
-class LlmException(message: String, cause: Throwable? = null) : Exception(message, cause)
+open class LlmException(message: String, cause: Throwable? = null) : Exception(message, cause)
+
+/**
+ * The provider doesn't serve the requested model (retired, renamed, or it can't
+ * use tools). Clients catch this, look up what the key can use, and switch.
+ */
+class ModelUnavailableException(message: String) : LlmException(message)
 
 /** The model behind the companion. An interface so the agent loop is testable. */
 interface Llm {

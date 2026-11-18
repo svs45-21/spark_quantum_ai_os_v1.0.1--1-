@@ -35,6 +35,8 @@ class SettingsActivity : Activity() {
     private val engine get() = SparkApp.engine
     private val settings get() = engine.settings
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var modelRefresh: () -> Unit = {}
+    private var mediaModelRefresh: () -> Unit = {}
 
     private lateinit var content: LinearLayout
     private lateinit var permissionRows: LinearLayout
@@ -180,29 +182,56 @@ class SettingsActivity : Activity() {
 
         note("Google Gemini — free key at aistudio.google.com/apikey. Also used for avatar images and natural voices.")
         field("Gemini API key", settings.apiKey, "AIza…", secret = true) { settings.apiKey = it }
-        field("Gemini model", settings.model, "gemini-2.5-flash") { settings.model = it }
+        val geminiModel = field("Gemini model", settings.model, com.spark.companion.brain.GeminiClient.DEFAULT_MODEL) { settings.model = it }
 
         note("Groq — free key at console.groq.com/keys. Very fast; good for phone control.")
         field("Groq API key", settings.groqApiKey, "gsk_…", secret = true) { settings.groqApiKey = it }
-        field("Groq model", settings.groqModel, com.spark.companion.brain.OpenAiCompatClient.DEFAULT_GROQ_MODEL) { settings.groqModel = it }
+        val groqModel = field("Groq model", settings.groqModel, com.spark.companion.brain.OpenAiCompatClient.DEFAULT_GROQ_MODEL) { settings.groqModel = it }
 
         note("OpenRouter — free key at openrouter.ai/keys. Pick a model ending in “:free”. Not every free model can control the phone.")
         field("OpenRouter API key", settings.openRouterApiKey, "sk-or-…", secret = true) { settings.openRouterApiKey = it }
-        field("OpenRouter model", settings.openRouterModel, com.spark.companion.brain.OpenAiCompatClient.DEFAULT_OPENROUTER_MODEL) { settings.openRouterModel = it }
+        val openRouterModel = field("OpenRouter model", settings.openRouterModel, com.spark.companion.brain.OpenAiCompatClient.DEFAULT_OPENROUTER_MODEL) { settings.openRouterModel = it }
 
         note("Ollama — your own models on your PC/home server, free and private. Run Ollama and enter its address. Use a tool-capable model (llama3.1, qwen2.5) if you want Spark to operate the phone. Same Wi-Fi.")
         field("Ollama server", settings.ollamaUrl, "http://192.168.1.20:11434") { settings.ollamaUrl = it }
-        field("Ollama model", settings.ollamaModel, com.spark.companion.brain.OpenAiCompatClient.DEFAULT_OLLAMA_MODEL) { settings.ollamaModel = it }
+        val ollamaModel = field("Ollama model", settings.ollamaModel, com.spark.companion.brain.OpenAiCompatClient.DEFAULT_OLLAMA_MODEL) { settings.ollamaModel = it }
 
         note("Custom — any OpenAI-compatible server (LM Studio, vLLM, LocalAI, or your own fine-tuned model). Enter its base URL, a key if it needs one, and the model name.")
         field("Server base URL", settings.customUrl, "http://192.168.1.20:1234") { settings.customUrl = it }
         field("API key (if needed)", settings.customApiKey, "optional", secret = true) { settings.customApiKey = it }
-        field("Model name", settings.customModel, "your-model") { settings.customModel = it }
+        val customModel = field("Model name", settings.customModel, "your-model") { settings.customModel = it }
+
+        // Spark may swap a retired model for a working one; show the saved names
+        // so leaving this screen doesn't write the old ones back.
+        modelRefresh = {
+            geminiModel.setText(settings.model)
+            groqModel.setText(settings.groqModel)
+            openRouterModel.setText(settings.openRouterModel)
+            ollamaModel.setText(settings.ollamaModel)
+            customModel.setText(settings.customModel)
+            mediaModelRefresh()
+        }
+
+        note("Model names change often. If a provider retires one, Spark finds a working model by itself. Tap below to check your keys now.")
+        action("Find working models for my keys") {
+            save()
+            toast("Checking your keys…")
+            scope.launch {
+                val summary = engine.findWorkingModels()
+                modelRefresh()
+                engine.refreshSettings()
+                toast(summary)
+            }
+        }
 
         action("Test the selected brain") {
             save()
             toast("Testing…")
-            scope.launch { toast(engine.testGemini()) }
+            scope.launch {
+                val result = engine.testGemini()
+                modelRefresh()
+                toast(result)
+            }
         }
 
         section("AVATAR IMAGES", "How AI makes avatars from a description. Pollinations is free with no key or quota.")
@@ -336,8 +365,12 @@ class SettingsActivity : Activity() {
         }
 
         section("ADVANCED", "Gemini model names, in case Google renames them.")
-        field("Image model (avatar creation)", settings.imageModel, com.spark.companion.brain.GeminiMedia.DEFAULT_IMAGE_MODEL) { settings.imageModel = it }
-        field("Voice model (natural voices)", settings.ttsModel, com.spark.companion.brain.GeminiMedia.DEFAULT_TTS_MODEL) { settings.ttsModel = it }
+        val imageModel = field("Image model (avatar creation)", settings.imageModel, com.spark.companion.brain.GeminiMedia.DEFAULT_IMAGE_MODEL) { settings.imageModel = it }
+        val ttsModel = field("Voice model (natural voices)", settings.ttsModel, com.spark.companion.brain.GeminiMedia.DEFAULT_TTS_MODEL) { settings.ttsModel = it }
+        mediaModelRefresh = {
+            imageModel.setText(settings.imageModel)
+            ttsModel.setText(settings.ttsModel)
+        }
 
         section(
             "n8n WORKFLOWS",

@@ -68,11 +68,15 @@ class SparkEngine(private val context: Context) {
     private val llm = RoutingLlm(
         provider = { settings.chatProvider },
         clients = mapOf(
-            RoutingLlm.GEMINI to GeminiClient({ settings.apiKey }, { settings.model }),
-            RoutingLlm.GROQ to OpenAiCompatClient.groq({ settings.groqApiKey }, { settings.groqModel }),
-            RoutingLlm.OPENROUTER to OpenAiCompatClient.openRouter({ settings.openRouterApiKey }, { settings.openRouterModel }),
-            RoutingLlm.OLLAMA to OpenAiCompatClient.ollama({ settings.ollamaUrl }, { settings.ollamaModel }),
-            RoutingLlm.CUSTOM to OpenAiCompatClient.custom({ settings.customUrl }, { settings.customApiKey }, { settings.customModel }),
+            RoutingLlm.GEMINI to GeminiClient({ settings.apiKey }, { settings.model }) { settings.model = it },
+            RoutingLlm.GROQ to OpenAiCompatClient.groq({ settings.groqApiKey }, { settings.groqModel })
+                .apply { onModelSwitch = { settings.groqModel = it } },
+            RoutingLlm.OPENROUTER to OpenAiCompatClient.openRouter({ settings.openRouterApiKey }, { settings.openRouterModel })
+                .apply { onModelSwitch = { settings.openRouterModel = it } },
+            RoutingLlm.OLLAMA to OpenAiCompatClient.ollama({ settings.ollamaUrl }, { settings.ollamaModel })
+                .apply { onModelSwitch = { settings.ollamaModel = it } },
+            RoutingLlm.CUSTOM to OpenAiCompatClient.custom({ settings.customUrl }, { settings.customApiKey }, { settings.customModel })
+                .apply { onModelSwitch = { settings.customModel = it } },
         ),
     )
     private val agent = Agent(llm, tools)
@@ -112,7 +116,7 @@ class SparkEngine(private val context: Context) {
     /** The avatar Spark currently appears as. */
     val avatar = MutableStateFlow(avatars.get(settings.avatar))
 
-    private val naturalVoice = NaturalVoice({ settings.apiKey }, { settings.ttsModel })
+    private val naturalVoice = NaturalVoice({ settings.apiKey }, { settings.ttsModel }) { settings.ttsModel = it }
 
     /** The language the conversation is in right now; listening follows it. */
     private var talkLanguage: String = settings.primaryLanguage
@@ -247,6 +251,48 @@ suspend fun testGemini(): String = try {
         "Connected: " + reply.text
     } catch (e: LlmException) {
         e.message ?: "Connection test failed."
+    }
+
+    /**
+     * Asks every provider that has a key which models it offers right now, and
+     * saves a working choice for chat, voice and images. Returns a summary.
+     */
+    suspend fun findWorkingModels(): String {
+        val lines = ArrayList<String>()
+        suspend fun check(label: String, block: suspend () -> String?) {
+            lines += try {
+                val picked = block()
+                if (picked == null) "$label: no usable model found" else "$label: $picked"
+            } catch (e: LlmException) {
+                "$label: ${e.message}"
+            }
+        }
+        val cat = com.spark.companion.brain.ModelCatalog
+        if (settings.apiKey.isNotBlank()) {
+            val all = try {
+                cat.listGemini(settings.apiKey)
+            } catch (e: LlmException) {
+                lines += "Gemini: ${e.message}"
+                null
+            }
+            if (all != null) {
+                check("Gemini chat") { cat.pickGeminiChat(all)?.also { settings.model = it } }
+                check("Gemini voice") { cat.pickGeminiTts(all)?.also { settings.ttsModel = it } }
+                check("Gemini images") { cat.pickGeminiImage(all)?.also { settings.imageModel = it } }
+            }
+        }
+        if (settings.groqApiKey.isNotBlank()) check("Groq") {
+            cat.pickGroq(cat.listOpenAi(cat.GROQ_MODELS_URL, settings.groqApiKey, "Groq"))?.also { settings.groqModel = it }
+        }
+        if (settings.openRouterApiKey.isNotBlank()) check("OpenRouter") {
+            cat.pickOpenRouter(cat.listOpenAi(cat.OPENROUTER_MODELS_URL, settings.openRouterApiKey, "OpenRouter"))
+                ?.also { settings.openRouterModel = it }
+        }
+        if (settings.ollamaUrl.isNotBlank()) check("Ollama") {
+            val url = cat.modelsUrlFor(OpenAiCompatClient.chatEndpoint(settings.ollamaUrl))
+            cat.pickLocal(cat.listOpenAi(url, "", "Ollama"))?.also { settings.ollamaModel = it }
+        }
+        return if (lines.isEmpty()) "Add an API key first." else lines.joinToString("\n")
     }
 
     suspend fun testDesktopLink(): Boolean = link.ping()

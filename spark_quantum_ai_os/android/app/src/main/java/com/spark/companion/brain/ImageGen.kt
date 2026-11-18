@@ -20,14 +20,18 @@ interface ImageGen {
 /** Gemini image generation: can restyle a photo or create from a description. */
 class GeminiImageGen(
     private val apiKey: () -> String,
-    private val model: () -> String,
+    model: () -> String,
+    onModelSwitch: (String) -> Unit = {},
 ) : ImageGen {
     override val canUsePhoto = true
+    private val models = ModelSwitch({ model().trim().ifEmpty { GeminiMedia.DEFAULT_IMAGE_MODEL } }, onModelSwitch)
 
     override suspend fun generate(prompt: String, photoJpeg: ByteArray?): ByteArray {
         val body = GeminiMedia.imageRequest(prompt, photoJpeg).toString()
-        val url = GeminiHttp.endpoint(model(), GeminiMedia.DEFAULT_IMAGE_MODEL)
-        val reply = GeminiHttp.post(url, apiKey().trim(), body, 180_000)
+        val key = apiKey().trim()
+        val reply = models.run({ ModelCatalog.pickGeminiImage(ModelCatalog.listGemini(key)) }) { m ->
+            GeminiHttp.post(GeminiHttp.endpoint(m, GeminiMedia.DEFAULT_IMAGE_MODEL), key, body, 180_000)
+        }
         return GeminiMedia.parseImage(reply)
     }
 }

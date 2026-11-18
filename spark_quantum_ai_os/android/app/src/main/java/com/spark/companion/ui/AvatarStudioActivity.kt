@@ -365,7 +365,7 @@ class AvatarStudioActivity : Activity() {
     /** Asks Gemini for a portrait, then moves to the editor. */
     /** Picks the image generator: Pollinations (free) unless restyling a photo. */
     private fun imageGen(needsPhoto: Boolean): ImageGen {
-        val gemini = GeminiImageGen({ engine.settings.apiKey }, { engine.settings.imageModel })
+        val gemini = GeminiImageGen({ engine.settings.apiKey }, { engine.settings.imageModel }) { engine.settings.imageModel = it }
         if (needsPhoto) return gemini
         return if (engine.settings.imageProvider == "pollinations") PollinationsImageGen() else gemini
     }
