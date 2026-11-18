@@ -19,7 +19,16 @@ class OpenAiCompatClient(
     private val requiresKey: Boolean = true,
     private val modelsUrl: () -> String = { ModelCatalog.modelsUrlFor(endpoint()) },
     private val pick: (List<ModelCatalog.ModelInfo>) -> String? = ModelCatalog::pickLocal,
+    /** Every usable model, best first: stand-ins when the chosen one is busy. */
+    private val rank: (List<ModelCatalog.ModelInfo>) -> List<String> = { ModelCatalog.localModels(it).map { m -> m.id } },
 ) : Llm {
+    @Volatile private var cache: Pair<Long, List<ModelCatalog.ModelInfo>>? = null
+
+    private suspend fun listed(key: String): List<ModelCatalog.ModelInfo> {
+        cache?.takeIf { System.currentTimeMillis() - it.first < 3_600_000 }?.let { return it.second }
+        return ModelCatalog.listOpenAi(modelsUrl(), key, providerLabel).also { cache = System.currentTimeMillis() to it }
+    }
+
     /** Saves a replacement model when the configured one has been retired. */
     var onModelSwitch: (String) -> Unit = {}
     private val models = ModelSwitch({ model().trim().ifBlank { defaultModel } }, { onModelSwitch(it) })
@@ -33,10 +42,10 @@ class OpenAiCompatClient(
         if (url.isEmpty()) {
             throw LlmException("No $providerLabel server address yet. Add one in Spark settings.")
         }
-        val discover: suspend () -> String? = {
-            pick(ModelCatalog.listOpenAi(modelsUrl(), key, providerLabel))
-        }
-        val reply = models.run(discover) { m ->
+        val reply = models.run(
+            discover = { pick(listed(key)) },
+            alternatives = { rank(listed(key)) },
+        ) { m ->
             if (m.isBlank()) throw ModelUnavailableException("No $providerLabel model chosen yet.")
             OpenAiHttp.post(url, key, buildRequest(system, history, tools, m).toString(), extraHeaders, providerLabel)
         }
@@ -47,12 +56,26 @@ class OpenAiCompatClient(
         fun groq(apiKey: () -> String, model: () -> String) = OpenAiCompatClient(
             "Groq", { "https://api.groq.com/openai/v1/chat/completions" }, apiKey, model, DEFAULT_GROQ_MODEL,
             modelsUrl = { ModelCatalog.GROQ_MODELS_URL }, pick = ModelCatalog::pickGroq,
+            rank = { ModelCatalog.groqModels(it).map { m -> m.id } },
         )
 
         fun openRouter(apiKey: () -> String, model: () -> String) = OpenAiCompatClient(
             "OpenRouter", { "https://openrouter.ai/api/v1/chat/completions" }, apiKey, model, DEFAULT_OPENROUTER_MODEL,
             mapOf("HTTP-Referer" to "https://spark.companion", "X-Title" to "Spark"),
             modelsUrl = { ModelCatalog.OPENROUTER_MODELS_URL }, pick = ModelCatalog::pickOpenRouter,
+            rank = { ModelCatalog.openRouterModels(it).filter { m -> m.free && m.tools != false }.map { m -> m.id } },
+        )
+
+        /**
+         * Pollinations' free text service (OpenAI-style, no key). Used only as
+         * a last resort when every set-up provider is busy or failing.
+         */
+        fun free() = OpenAiCompatClient(
+            "Free backup service", { "https://text.pollinations.ai/openai" }, { "" }, { "" }, "openai",
+            requiresKey = false,
+            modelsUrl = { "https://text.pollinations.ai/models" },
+            pick = { list -> list.firstOrNull()?.id },
+            rank = { list -> list.map { it.id } },
         )
 
         /** Ollama exposes an OpenAI-compatible endpoint; no key needed. */

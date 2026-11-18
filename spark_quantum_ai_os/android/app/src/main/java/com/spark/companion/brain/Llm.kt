@@ -43,6 +43,9 @@ open class LlmException(message: String, cause: Throwable? = null) : Exception(m
  */
 class ModelUnavailableException(message: String) : LlmException(message)
 
+/** The provider is overloaded or rate-limited right now (503, 429, 5xx). Another model or provider may work. */
+class ProviderBusyException(message: String, cause: Throwable? = null) : LlmException(message, cause)
+
 /** The model behind the companion. An interface so the agent loop is testable. */
 interface Llm {
     @Throws(LlmException::class)

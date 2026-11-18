@@ -50,7 +50,7 @@ class SettingsActivity : Activity() {
             setPadding(pad, pad, pad, Ui.dp(this@SettingsActivity, 48))
         }
         setContentView(ScrollView(this).apply {
-            setBackgroundColor(Ui.BG)
+            background = Ui.backdrop()
             fitsSystemWindows = true
             addView(content)
         })

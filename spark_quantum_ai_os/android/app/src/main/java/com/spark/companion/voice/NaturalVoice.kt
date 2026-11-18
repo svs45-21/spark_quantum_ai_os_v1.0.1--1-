@@ -30,7 +30,10 @@ class NaturalVoice(
     suspend fun synthesize(text: String, voice: String, mood: Mood?): GeminiMedia.Pcm {
         val body = GeminiMedia.speechRequest(text, voice, mood).toString()
         val key = apiKey().trim()
-        val reply = models.run({ ModelCatalog.pickGeminiTts(ModelCatalog.listGemini(key)) }) { m ->
+        val reply = models.run(
+            discover = { ModelCatalog.pickGeminiTts(ModelCatalog.listGemini(key)) },
+            alternatives = { ModelCatalog.geminiTtsModels(ModelCatalog.listGemini(key)) },
+        ) { m ->
             GeminiHttp.post(GeminiHttp.endpoint(m, GeminiMedia.DEFAULT_TTS_MODEL), key, body, 120_000)
         }
         return GeminiMedia.parseSpeech(reply)

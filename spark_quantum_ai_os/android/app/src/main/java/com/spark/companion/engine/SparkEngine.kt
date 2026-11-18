@@ -77,7 +77,18 @@ class SparkEngine(private val context: Context) {
                 .apply { onModelSwitch = { settings.ollamaModel = it } },
             RoutingLlm.CUSTOM to OpenAiCompatClient.custom({ settings.customUrl }, { settings.customApiKey }, { settings.customModel })
                 .apply { onModelSwitch = { settings.customModel = it } },
+            RoutingLlm.FREE to OpenAiCompatClient.free(),
         ),
+        configured = { key ->
+            when (key) {
+                RoutingLlm.GEMINI -> settings.apiKey.isNotBlank()
+                RoutingLlm.GROQ -> settings.groqApiKey.isNotBlank()
+                RoutingLlm.OPENROUTER -> settings.openRouterApiKey.isNotBlank()
+                RoutingLlm.OLLAMA -> settings.ollamaUrl.isNotBlank()
+                RoutingLlm.CUSTOM -> settings.customUrl.isNotBlank()
+                else -> true
+            }
+        },
     )
     private val agent = Agent(llm, tools)
 
@@ -238,6 +249,7 @@ class SparkEngine(private val context: Context) {
     fun refreshSettings() {
         floatingEnabled.value = settings.floatingAvatar
         avatar.value = avatars.get(settings.avatar)
+        ensureRealisticLook()
         if (talkLanguage !in settings.languages) talkLanguage = settings.primaryLanguage
         if (settings.wakeWordEnabled && micGranted()) {
             CompanionService.start(context)
@@ -700,6 +712,58 @@ suspend fun testGemini(): String = try {
         context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
 
     private suspend fun postUser(text: String) = post(true, text)
+
+    // ── Realistic look ───────────────────────────────────────────────────
+
+    @Volatile private var realJob: Job? = null
+    private val realFailedAt = HashMap<String, Long>()
+
+    /** What's happening with the avatar's realistic look, for the main screen ("" when nothing). */
+    private val _lookStatus = MutableStateFlow("")
+    val lookStatus: StateFlow<String> = _lookStatus
+
+    /**
+     * Full-body avatars look like real people: if the current one has no
+     * realistic picture of its outfit yet, one is made in the background
+     * (free image service; Gemini first when a face photo should be kept).
+     */
+    fun ensureRealisticLook(force: Boolean = false) {
+        val profile = avatar.value
+        if (!avatars.needsRealBody(profile)) return
+        if (realJob?.isActive == true) return
+        val key = profile.id + "/" + profile.body?.outfitId
+        val failed = realFailedAt[key]
+        if (!force && failed != null && System.currentTimeMillis() - failed < 10 * 60_000) return
+        realJob = scope.launch {
+            val spec = profile.body ?: return@launch
+            _lookStatus.value = "Creating ${profile.name}'s realistic look…"
+            try {
+                val portrait = withContext(Dispatchers.IO) { profile.portrait?.let { AvatarRepository.loadPortrait(it) } }
+                val free = com.spark.companion.brain.PollinationsImageGen(
+                    com.spark.companion.brain.PollinationsImageGen.TALL_WIDTH, com.spark.companion.brain.PollinationsImageGen.TALL_HEIGHT,
+                )
+                val gemini = com.spark.companion.brain.GeminiImageGen(
+                    { settings.apiKey }, { settings.imageModel }, onModelSwitch = { settings.imageModel = it }, aspectRatio = "9:16",
+                )
+                val (result, swapped) = try {
+                    if (portrait == null || settings.apiKey.isBlank()) throw LlmException("skip")
+                    com.spark.companion.ui.avatar.RealBody.create(gemini, spec, portrait) to false
+                } catch (e: LlmException) {
+                    com.spark.companion.ui.avatar.RealBody.create(free, spec, null) to (portrait != null)
+                }
+                withContext(Dispatchers.IO) { avatars.saveRealBody(profile, result, swapped, spec.outfitId) }
+                com.spark.companion.ui.avatar.AvatarView.clearCache()
+                avatar.value = avatars.get(settings.avatar)
+                _lookStatus.value = ""
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                _lookStatus.value = ""
+                throw e
+            } catch (e: Exception) {
+                realFailedAt[key] = System.currentTimeMillis()
+                _lookStatus.value = "Couldn't create the realistic look yet (${(e as? LlmException)?.message ?: "no connection"}). Tap to try again."
+            }
+        }
+    }
 
     private fun postAssistant(text: String) {
         scope.launch { post(false, text) }
