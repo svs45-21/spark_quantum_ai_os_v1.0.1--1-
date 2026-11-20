@@ -4,13 +4,12 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
-import com.spark.companion.brain.GeminiMedia
 import org.json.JSONObject
 import java.io.File
 import java.util.UUID
 
-/** How an avatar sounds: phone-voice pitch and rate, and its Gemini voice. */
-data class VoiceStyle(val pitch: Float, val rate: Float, val geminiVoice: String)
+/** How an avatar sounds: phone-voice pitch and rate (and a voice name kept from older versions). */
+data class VoiceStyle(val pitch: Float, val rate: Float, val voiceName: String)
 
 /**
  * One avatar Spark can appear as: a built-in character or one the user made
@@ -168,7 +167,7 @@ class AvatarRepository(context: Context) {
             voice = VoiceStyle(
                 meta.optDouble("pitch", 1.0).toFloat(),
                 meta.optDouble("rate", 1.0).toFloat(),
-                meta.optString("voice", GeminiMedia.VOICES[0].first),
+                meta.optString("voice", ""),
             ),
             portrait = portrait,
             landmarks = FaceLandmarks.fromJson(meta.getJSONObject("landmarks")),
@@ -201,7 +200,7 @@ class AvatarRepository(context: Context) {
             .put("accent", accent)
             .put("pitch", voice.pitch.toDouble())
             .put("rate", voice.rate.toDouble())
-            .put("voice", voice.geminiVoice)
+            .put("voice", voice.voiceName)
             .put("landmarks", landmarks.toJson())
         if (body != null) meta.put("body", body.toJson())
         File(dir, "meta.json").writeText(meta.toString())

@@ -30,7 +30,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-/** Spark's eyes: snap a photo and ask Gemini about it, then hear the answer. */
+/** Spark's eyes: snap a photo and ask Claude about it, then hear the answer. */
 class VisionActivity : Activity() {
 
     private val engine get() = SparkApp.engine
@@ -46,8 +46,8 @@ class VisionActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(buildUi())
-        if (engine.settings.apiKey.isBlank()) {
-            answer.text = "Camera vision uses Gemini. Add your Gemini API key in Spark settings first."
+        if (engine.settings.claudeApiKey.isBlank()) {
+            answer.text = "Camera vision uses Claude. Add your Claude API key in Spark settings first."
         } else {
             capture()
         }
@@ -114,7 +114,7 @@ class VisionActivity : Activity() {
         job = scope.launch {
             try {
                 val jpeg = withContext(Dispatchers.Default) { FaceTools.jpeg(bmp, 1280) }
-                val reply = Vision.ask(prompt, jpeg, engine.settings.primaryLanguage, { engine.settings.apiKey }, { engine.settings.model })
+                val reply = Vision.ask(engine.claude, prompt, jpeg, engine.settings.primaryLanguage)
                 answer.text = reply
                 if (engine.settings.speakReplies) engine.speakExternal(reply, Mood.THOUGHTFUL)
             } catch (e: LlmException) {

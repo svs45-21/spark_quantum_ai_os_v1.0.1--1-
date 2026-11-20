@@ -200,7 +200,7 @@ object FaceTools {
         return Portrait(out, landmarks, true)
     }
 
-    /** JPEG bytes to send to Gemini (at most 1024 px). */
+    /** JPEG bytes for sending a photo to Claude (at most 1024 px). */
     fun jpeg(b: Bitmap, maxSide: Int = 1024): ByteArray {
         val scaled = scaleToMax(b, maxSide)
         return ByteArrayOutputStream().also { scaled.compress(Bitmap.CompressFormat.JPEG, 90, it) }.toByteArray()

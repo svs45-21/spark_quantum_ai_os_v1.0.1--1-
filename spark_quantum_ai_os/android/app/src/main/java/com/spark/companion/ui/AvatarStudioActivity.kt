@@ -19,10 +19,7 @@ import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import com.spark.companion.SparkApp
-import com.spark.companion.brain.GeminiImageGen
-import com.spark.companion.brain.GeminiMedia
-import com.spark.companion.brain.ImageGen
-import com.spark.companion.brain.PollinationsImageGen
+import com.spark.companion.brain.AvatarPrompts
 import com.spark.companion.brain.LlmException
 import com.spark.companion.engine.Phase
 import com.spark.companion.ui.avatar.AvatarProfile
@@ -45,8 +42,8 @@ import kotlin.math.abs
 import kotlin.math.sin
 
 /**
- * Make your own avatars: upload a photo (used as-is or restyled by Gemini),
- * or describe a character for Gemini to create. Then place the eye and
+ * Make your own avatars: upload a photo, or describe a character for the
+ * free image service to create. Then place the eye and
  * mouth dots, give it a name, personality and voice, and Spark becomes it.
  */
 class AvatarStudioActivity : Activity() {
@@ -69,7 +66,7 @@ class AvatarStudioActivity : Activity() {
     private var name = ""
     private var personality = ""
     private var accent = AvatarProfile.ACCENTS[0]
-    private var geminiVoice = GeminiMedia.VOICES[0].first
+    private var voiceName = ""
     private var pitch = 1f
     private var description = ""
     private var previewJob: Job? = null
@@ -86,6 +83,11 @@ class AvatarStudioActivity : Activity() {
     private var pendingReal: com.spark.companion.ui.avatar.RealBody.Result? = null
     private var pendingRealSwap = false
     private var pendingRealOutfit: String? = null
+    /** Making the realistic picture in the background. */
+    private var realJob: Job? = null
+    private var realError: String? = null
+    /** The next photo picked is a full-body photo to use as the body. */
+    private var bodyPhotoMode = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -233,10 +235,19 @@ class AvatarStudioActivity : Activity() {
         }
 
         heading("CREATE A NEW ONE")
-        button("Full-body avatar with my face", primary = true) { askGender() }
+        button("Use a full-body photo (real person)", primary = true) {
+            bodyPhotoMode = true
+            askGender()
+        }
+        note("Pick a photo of a person standing, head to toe, on a plain background (like a studio or wall photo). That real person becomes the avatar: they talk, blink, show feelings and breathe.")
+        button("Full-body avatar with my face") {
+            bodyPhotoMode = false
+            askGender()
+        }
         note("Upload a photo: your face goes onto a full female or male body, with matching skin and hair. Then pick from 50 outfits.")
         button("Use a photo (face only)") {
             pendingGender = null
+            bodyPhotoMode = false
             pickPhoto()
         }
         note("Any clear, front-facing face works: a selfie, a portrait, a drawing or a painting. Use photos of yourself or of people who are happy to be an avatar.")
@@ -244,7 +255,7 @@ class AvatarStudioActivity : Activity() {
             photo = null
             show(Screen.DESCRIBE)
         }
-        note("AI styles and AI creation send the picture or description to Google Gemini with your API key. Photos used as-is never leave the phone.")
+        note("Claude doesn't make pictures: avatars from a description and realistic bodies are drawn by OpenAI if you add an OpenAI key in Spark settings → Pictures (your photo is then sent to OpenAI to keep your likeness), otherwise by the free Pollinations service. Photos used as they are stay on the phone.")
     }
 
     private fun avatarRow(profile: AvatarProfile, selected: Boolean): View {
@@ -319,7 +330,7 @@ class AvatarStudioActivity : Activity() {
         name = profile.name
         personality = profile.personality
         accent = profile.accent
-        geminiVoice = profile.voice.geminiVoice
+        voiceName = profile.voice.voiceName
         pitch = profile.voice.pitch
         show(Screen.EDIT)
     }
@@ -344,6 +355,24 @@ class AvatarStudioActivity : Activity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != REQUEST_PHOTO || resultCode != RESULT_OK) return
         val uri = data?.data ?: return
+        if (bodyPhotoMode) {
+            bodyPhotoMode = false
+            working("Getting the person ready…") {
+                val loaded = withContext(Dispatchers.IO) { FaceTools.load(this@AvatarStudioActivity, uri) }
+                    ?: throw LlmException("Couldn't open that picture.")
+                val result = com.spark.companion.ui.avatar.RealBody.fromPhoto(loaded)
+                val framed = withContext(Dispatchers.Default) { FaceTools.portrait(loaded) }
+                photo = loaded
+                if (pendingGender == null) pendingGender = com.spark.companion.ui.avatar.Gender.FEMALE
+                startNew(framed)
+                body = body?.copy(outfitId = com.spark.companion.ui.avatar.RealBody.PHOTO_OUTFIT, realistic = true)
+                pendingReal = result
+                pendingRealSwap = false
+                pendingRealOutfit = com.spark.companion.ui.avatar.RealBody.PHOTO_OUTFIT
+                show(Screen.EDIT)
+            }
+            return
+        }
         working("Finding the face…") {
             val loaded = withContext(Dispatchers.IO) { FaceTools.load(this@AvatarStudioActivity, uri) }
                 ?: throw LlmException("Couldn't open that picture.")
@@ -386,10 +415,12 @@ class AvatarStudioActivity : Activity() {
         note(if (faceFound) "Face found, straightened and centred. On the next screen the eye and mouth dots are already placed — just check them."
         else "I couldn't find a face in this picture, so on the next screen you'll place the eye and mouth dots yourself. A clear, front-facing face works best.")
         button("Use this photo as it is", primary = true) { show(Screen.EDIT) }
-        heading("OR RESTYLE IT WITH AI")
-        note("Gemini redraws the picture in the style you pick, keeping the likeness. Takes 10–30 seconds. On the free plan this has a small quota — if it says the limit was hit, wait a minute, or just use the photo as it is above.")
-        for (style in GeminiMedia.ImageStyle.values()) {
-            button(style.label) { generate(GeminiMedia.convertPrompt(style), photo) }
+        if (engine.settings.openAiApiKey.isNotBlank()) {
+            heading("OR RESTYLE IT WITH AI")
+            note("OpenAI redraws your photo in the style you pick, keeping your likeness. Takes 20–60 seconds and uses your OpenAI credit. The photo is sent to OpenAI.")
+            for (style in AvatarPrompts.ImageStyle.values()) {
+                button(style.label) { generate(AvatarPrompts.convertPrompt(style), photo) }
+            }
         }
         button("Choose a different photo") { pickPhoto() }
     }
@@ -399,36 +430,24 @@ class AvatarStudioActivity : Activity() {
     private fun buildDescribe() {
         title("Describe your avatar")
         note("Who should Spark look like? Describe the face, age, hair, clothes and vibe.")
-        val free = engine.settings.imageProvider == "pollinations"
-        note(if (free) "Using the free image maker (Pollinations) — no key, no quota." else "Using Gemini (free-tier quota). You can switch to the free image maker in Spark settings.")
+        note(if (engine.settings.openAiApiKey.isNotBlank()) "Drawn by OpenAI with your key (uses your OpenAI credit)."
+            else "Drawn by the free image maker (Pollinations). For better pictures, add an OpenAI key in Spark settings → Pictures.")
         field("e.g. a cheerful woman in her twenties with curly black hair, a yellow kurta and a warm smile", description, multiline = true) {
             description = it
         }
         heading("PICK A LOOK")
-        for (style in GeminiMedia.ImageStyle.values()) {
-            button(style.label, primary = style == GeminiMedia.ImageStyle.REALISTIC) {
+        for (style in AvatarPrompts.ImageStyle.values()) {
+            button(style.label, primary = style == AvatarPrompts.ImageStyle.REALISTIC) {
                 if (description.isBlank()) toast("Describe your avatar first.")
-                else generate(GeminiMedia.describePrompt(description, style), null)
+                else generate(AvatarPrompts.describePrompt(description, style), null)
             }
         }
     }
 
-    /** Asks Gemini for a portrait, then moves to the editor. */
-    /** Picks the image generator: Pollinations (free) unless restyling a photo. */
-    private fun imageGen(needsPhoto: Boolean): ImageGen {
-        val gemini = GeminiImageGen({ engine.settings.apiKey }, { engine.settings.imageModel }, onModelSwitch = { engine.settings.imageModel = it })
-        if (needsPhoto) return gemini
-        return if (engine.settings.imageProvider == "pollinations") PollinationsImageGen() else gemini
-    }
-
+    /** Draws a portrait (OpenAI with a key, otherwise the free service), then moves to the editor. */
     private fun generate(prompt: String, source: Bitmap?) {
-        val gen = imageGen(needsPhoto = source != null)
-        if (gen is GeminiImageGen && engine.settings.apiKey.isBlank()) {
-            toast("Add your Gemini API key in Spark settings, or switch to the free image maker in Settings.")
-            return
-        }
-        val label = if (gen is PollinationsImageGen) "Drawing your avatar (free)…" else "Gemini is drawing your avatar…"
-        working(label) {
+        val gen = engine.settings.imageMaker()
+        working("${gen.label.replaceFirstChar { it.uppercase() }} is drawing your avatar…") {
             val bytes = withContext(Dispatchers.Default) { source?.let { FaceTools.jpeg(it) } }
             val image = gen.generate(prompt, bytes)
             val bitmap = withContext(Dispatchers.Default) { FaceTools.decode(image) }
@@ -479,6 +498,8 @@ class AvatarStudioActivity : Activity() {
         }
         refreshPreview()
         previewRow.addView(preview, LinearLayout.LayoutParams(Ui.dp(this, 170), Ui.dp(this, if (body != null) 300 else 170)))
+        val waitingReal = body?.let { b -> b.realistic && !(pendingReal != null && pendingRealOutfit == b.outfitId) } == true
+        preview.alpha = if (waitingReal) 0.3f else 1f
         val controls = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         fun control(label: String, action: () -> Unit) = controls.addView(
             Ui.button(this, label, Ui.SURFACE_HI, Ui.TEXT, action),
@@ -508,6 +529,7 @@ class AvatarStudioActivity : Activity() {
         previewRow.addView(controls, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             .apply { marginStart = Ui.dp(this@AvatarStudioActivity, 12) })
         content.addView(previewRow)
+        realStatus(waitingReal, bitmap)
 
         heading("BODY")
         note("Show just the face, or put it on a full body that can move, gesture and wear 50 outfits.")
@@ -562,19 +584,7 @@ class AvatarStudioActivity : Activity() {
         content.addView(colours)
 
         heading("VOICE")
-        note("Used with Gemini natural voices (Spark settings → Voice). The pitch also shapes the phone's own voice.")
-        val voices = RadioGroup(this).apply { orientation = RadioGroup.VERTICAL }
-        for ((voice, about) in GeminiMedia.VOICES) {
-            voices.addView(RadioButton(this).apply {
-                id = View.generateViewId()
-                text = "$voice · $about"
-                setTextColor(Ui.TEXT)
-                textSize = 15f
-                isChecked = voice == geminiVoice
-                setOnCheckedChangeListener { _, checked -> if (checked) geminiVoice = voice }
-            })
-        }
-        content.addView(voices)
+        note("Spark speaks with the phone's own voice. Set how high or low this avatar sounds.")
         val pitchLabel = Ui.text(this, "", 14f, Ui.TEXT_DIM)
         fun renderPitch() {
             pitchLabel.text = "Phone voice pitch: " + when {
@@ -647,13 +657,10 @@ class AvatarStudioActivity : Activity() {
         }
         content.addView(preview, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 340)))
         if (start.realistic) {
-            if (currentReal == null) {
-                note("This is only a rough drawn preview. Create the realistic photo now, or just save: the realistic person" +
-                    (if (faceBitmap != null) " with your face" else "") + " is made automatically (free, 20–40 seconds).")
-                button("Create realistic photo", primary = true) { makeReal(faceBitmap) }
-            } else {
-                note("Realistic photo ready. Not quite right? Each try gives a new picture.")
-                button("Try another photo") { makeReal(faceBitmap) }
+            preview.alpha = if (currentReal == null) 0.3f else 1f
+            if (!realStatus(currentReal == null, faceBitmap)) {
+                note("Not quite right? Each try gives a new picture.")
+                button("Try another picture") { makeReal(faceBitmap) }
             }
         }
 
@@ -690,6 +697,11 @@ class AvatarStudioActivity : Activity() {
         }
         val b = start
         fun update(next: com.spark.companion.ui.avatar.BodySpec, rebuild: Boolean) {
+            if (next.outfitId != body?.outfitId || next.realistic != body?.realistic) {
+                // A different outfit needs its own picture.
+                realJob?.cancel()
+                realError = null
+            }
             body = next
             if (rebuild) {
                 val y = (content.parent as? ScrollView)?.scrollY ?: 0
@@ -800,29 +812,58 @@ class AvatarStudioActivity : Activity() {
     }
 
     /**
-     * Makes a photo-realistic picture of the current body and outfit. With your
-     * photo and a Gemini key, Gemini keeps your likeness; otherwise the free
-     * image service draws the person and your face is swapped on.
+     * Makes a photo-realistic picture of the current body and outfit with the
+     * free image service; with your photo, your face is swapped on.
      */
     private fun makeReal(facePhoto: Bitmap?) {
+        realJob?.cancel()
+        realError = null
+        startReal(facePhoto)
+        rebuildKeepingScroll()
+    }
+
+    /** Starts making the realistic picture in the background; the screen updates when it's ready. */
+    private fun startReal(facePhoto: Bitmap?) {
         val spec = body ?: return
-        val settings = engine.settings
-        val gemini = com.spark.companion.brain.GeminiImageGen({ settings.apiKey }, { settings.imageModel }, { settings.imageModel = it }, aspectRatio = "9:16")
-        val free = PollinationsImageGen(PollinationsImageGen.TALL_WIDTH, PollinationsImageGen.TALL_HEIGHT)
-        val tryGeminiFirst = settings.apiKey.isNotBlank() && (facePhoto != null || settings.imageProvider == "gemini")
-        working("Creating a realistic photo… (20–40 seconds)") {
-            val (result, swapped) = try {
-                if (!tryGeminiFirst) throw LlmException("skip")
-                com.spark.companion.ui.avatar.RealBody.create(gemini, spec, facePhoto) to false
+        if (realJob?.isActive == true) return
+        val maker = engine.settings.imageMaker(com.spark.companion.brain.OpenAiImageGen.TALL)
+        val likeness = maker.canUsePhoto && facePhoto != null
+        realError = null
+        realJob = scope.launch {
+            try {
+                // With OpenAI the person is drawn with your face; otherwise your face is swapped on.
+                val result = com.spark.companion.ui.avatar.RealBody.create(maker, spec, if (likeness) facePhoto else null)
+                val swapped = facePhoto != null && !likeness
+                pendingReal = result
+                pendingRealSwap = swapped
+                pendingRealOutfit = spec.outfitId
             } catch (e: LlmException) {
-                // Free fallback (also when Gemini's image quota is used up).
-                com.spark.companion.ui.avatar.RealBody.create(free, spec, null) to (facePhoto != null)
+                realError = e.message ?: "Something went wrong."
             }
-            pendingReal = result
-            pendingRealSwap = swapped
-            pendingRealOutfit = spec.outfitId
-            show(Screen.OUTFIT)
+            if (screen == Screen.EDIT || screen == Screen.OUTFIT) rebuildKeepingScroll()
         }
+    }
+
+    private fun rebuildKeepingScroll() {
+        val scroll = content.parent as? ScrollView
+        val y = scroll?.scrollY ?: 0
+        show(screen)
+        scroll?.post { scroll.scrollTo(0, y) }
+    }
+
+    /** A status line and retry button for the realistic picture; true while it isn't ready. */
+    private fun realStatus(needed: Boolean, facePhoto: Bitmap?): Boolean {
+        if (!needed) return false
+        val error = realError
+        when {
+            realJob?.isActive == true -> note("Creating the realistic person… (about 20–40 seconds). The faint figure is only a placeholder.")
+            error != null -> {
+                note("Couldn't create the realistic person: $error")
+                button("Try again", primary = true) { makeReal(facePhoto) }
+            }
+            else -> startReal(facePhoto).also { note("Creating the realistic person… (about 20–40 seconds).") }
+        }
+        return true
     }
 
     /** A few seconds of pretend speech so you can check the mouth. */
@@ -851,7 +892,7 @@ class AvatarStudioActivity : Activity() {
                     name = name.trim(),
                     personality = personality.trim(),
                     accent = accent,
-                    voice = VoiceStyle(pitch, 1f, geminiVoice),
+                    voice = VoiceStyle(pitch, 1f, voiceName),
                     portrait = bitmap,
                     landmarks = landmarks,
                     tagline = when {

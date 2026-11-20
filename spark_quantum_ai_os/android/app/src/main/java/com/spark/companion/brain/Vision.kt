@@ -1,10 +1,6 @@
 package com.spark.companion.brain
 
-import org.json.JSONArray
-import org.json.JSONObject
-import java.util.Base64
-
-/** Asks Gemini about a photo: "what is this?", reading text, translating, etc. */
+/** Asks Claude about a photo: "what is this?", reading text, translating, etc. */
 object Vision {
 
     /** Quick things the camera screen can ask about a photo. */
@@ -16,23 +12,13 @@ object Vision {
         EXPLAIN("Explain / help", "Look at this photo and help the user with it. If it's a question, a form, a sign, a menu, a label or a screen, explain it and what they should do."),
     }
 
-    fun request(question: String, imageJpeg: ByteArray, language: String): JSONObject {
-        val sys = "You are Spark, looking through the user's phone camera. Answer in their language" +
+    fun systemPrompt(language: String): String =
+        "You are Spark, looking through the user's phone camera. Answer in their language" +
             (if (language.isNotBlank()) " ($language)" else "") +
             ". Be brief and natural, as if speaking aloud; no markdown. Never claim to see something you can't make out — say if the photo is blurry or unclear."
-        val parts = JSONArray()
-            .put(JSONObject().put("inlineData", JSONObject().put("mimeType", "image/jpeg").put("data", Base64.getEncoder().encodeToString(imageJpeg))))
-            .put(JSONObject().put("text", question))
-        return JSONObject()
-            .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", sys))))
-            .put("contents", JSONArray().put(JSONObject().put("role", "user").put("parts", parts)))
-            .put("generationConfig", JSONObject().put("temperature", 0.4).put("maxOutputTokens", 1024))
-    }
 
     @Throws(LlmException::class)
-    suspend fun ask(question: String, imageJpeg: ByteArray, language: String, apiKey: () -> String, model: () -> String): String {
-        val url = GeminiHttp.endpoint(model(), GeminiClient.DEFAULT_MODEL)
-        val reply = GeminiHttp.post(url, apiKey().trim(), request(question, imageJpeg, language).toString(), 90_000)
-        return GeminiClient.parseResponse(reply.toString()).text.ifBlank { "I couldn't make that out. Try again with a clearer, closer photo." }
-    }
+    suspend fun ask(claude: ClaudeClient, question: String, imageJpeg: ByteArray, language: String): String =
+        claude.ask(systemPrompt(language), question, imageJpeg)
+            .ifBlank { "I couldn't make that out. Try again with a clearer, closer photo." }
 }

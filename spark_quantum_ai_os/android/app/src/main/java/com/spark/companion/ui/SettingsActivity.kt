@@ -36,7 +36,6 @@ class SettingsActivity : Activity() {
     private val settings get() = engine.settings
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var modelRefresh: () -> Unit = {}
-    private var mediaModelRefresh: () -> Unit = {}
 
     private lateinit var content: LinearLayout
     private lateinit var permissionRows: LinearLayout
@@ -204,82 +203,41 @@ class SettingsActivity : Activity() {
         field("What should Spark call you?", settings.userName, "Your name") { settings.userName = it }
 
         section(
-            "BRAIN",
-            "Who does Spark think with? All three have free tiers. Keys are stored encrypted on this phone."
+            "CLAUDE",
+            "Spark thinks with Claude, by Anthropic: conversation, phone control and camera vision. " +
+                "Create a key at console.anthropic.com → API keys (usage is billed to your Anthropic account). " +
+                "The key is stored encrypted on this phone."
         )
-        val brains = android.widget.RadioGroup(this).apply { orientation = android.widget.RadioGroup.VERTICAL }
-        for ((key, label) in com.spark.companion.brain.RoutingLlm.PROVIDERS) {
-            brains.addView(android.widget.RadioButton(this).apply {
-                id = View.generateViewId()
-                text = label
-                setTextColor(Ui.TEXT)
-                textSize = 15.5f
-                isChecked = settings.chatProvider == key
-                setOnCheckedChangeListener { _, checked -> if (checked) settings.chatProvider = key }
-            })
-        }
-        content.addView(brains)
-
-        note("Google Gemini — free key at aistudio.google.com/apikey. Also used for avatar images and natural voices.")
-        field("Gemini API key", settings.apiKey, "AIza…", secret = true) { settings.apiKey = it }
-        val geminiModel = modelField("Gemini model", com.spark.companion.core.ModelListStore.GEMINI_CHAT, settings.model) { settings.model = it }
-
-        note("Groq — free key at console.groq.com/keys. Very fast; good for phone control.")
-        field("Groq API key", settings.groqApiKey, "gsk_…", secret = true) { settings.groqApiKey = it }
-        val groqModel = modelField("Groq model", com.spark.companion.core.ModelListStore.GROQ, settings.groqModel) { settings.groqModel = it }
-
-        note("OpenRouter — free key at openrouter.ai/keys. Pick a model ending in “:free”. Not every free model can control the phone.")
-        field("OpenRouter API key", settings.openRouterApiKey, "sk-or-…", secret = true) { settings.openRouterApiKey = it }
-        val openRouterModel = modelField("OpenRouter model", com.spark.companion.core.ModelListStore.OPENROUTER, settings.openRouterModel) { settings.openRouterModel = it }
-
-        note("Ollama — your own models on your PC/home server, free and private. Run Ollama and enter its address. Use a tool-capable model (llama3.1, qwen2.5) if you want Spark to operate the phone. Same Wi-Fi.")
-        field("Ollama server", settings.ollamaUrl, "http://192.168.1.20:11434") { settings.ollamaUrl = it }
-        val ollamaModel = modelField("Ollama model", com.spark.companion.core.ModelListStore.OLLAMA, settings.ollamaModel) { settings.ollamaModel = it }
-
-        note("Custom — any OpenAI-compatible server (LM Studio, vLLM, LocalAI, or your own fine-tuned model). Enter its base URL, a key if it needs one, and the model name.")
-        field("Server base URL", settings.customUrl, "http://192.168.1.20:1234") { settings.customUrl = it }
-        field("API key (if needed)", settings.customApiKey, "optional", secret = true) { settings.customApiKey = it }
-        val customModel = modelField("Model name", com.spark.companion.core.ModelListStore.CUSTOM, settings.customModel) { settings.customModel = it }
-
-        // Spark may swap a retired model for a working one; show the saved names
-        // so leaving this screen doesn't write the old ones back.
-        modelRefresh = {
-            geminiModel.set(settings.model)
-            groqModel.set(settings.groqModel)
-            openRouterModel.set(settings.openRouterModel)
-            ollamaModel.set(settings.ollamaModel)
-            customModel.set(settings.customModel)
-            mediaModelRefresh()
-        }
-
-        note("The model lists come from Gemini, Groq and OpenRouter themselves and refresh by themselves, so newly released models appear (marked NEW). If a model is retired, Spark switches to a working one.")
-        action("Refresh model lists") { refreshModels(pickBest = false) }
-        action("Pick the best model for each key") { refreshModels(pickBest = true) }
-
-        action("Test the selected brain") {
+        field("Claude API key", settings.claudeApiKey, "sk-ant-…", secret = true) { settings.claudeApiKey = it }
+        val claudeModel = modelField("Claude model", com.spark.companion.core.ModelListStore.CLAUDE, settings.claudeModel) { settings.claudeModel = it }
+        modelRefresh = { claudeModel.set(settings.claudeModel) }
+        note("Claude Opus 5.5 is the default and Anthropic's recommended model. The list comes from your key and updates by itself, so new Claude models appear (marked NEW). If Claude is busy, Spark briefly uses another Claude model so you still get an answer.")
+        action("Refresh model list") { refreshModels(pickBest = false) }
+        action("Test Claude") {
             save()
             toast("Testing…")
             scope.launch {
-                val result = engine.testGemini()
+                val result = engine.testBrain()
                 modelRefresh()
                 toast(result)
             }
         }
 
-        section("AVATAR IMAGES", "How AI makes avatars from a description. Pollinations is free with no key or quota.")
-        val imageProviders = android.widget.RadioGroup(this).apply { orientation = android.widget.RadioGroup.VERTICAL }
-        for ((key, label) in listOf("pollinations" to "Pollinations (free, no key)", "gemini" to "Gemini (free-tier quota)")) {
-            imageProviders.addView(android.widget.RadioButton(this).apply {
-                id = View.generateViewId()
-                text = label
-                setTextColor(Ui.TEXT)
-                textSize = 15.5f
-                isChecked = settings.imageProvider == key
-                setOnCheckedChangeListener { _, checked -> if (checked) settings.imageProvider = key }
-            })
+        section(
+            "PICTURES",
+            "Claude doesn't make pictures. For realistic avatars and AI-styled portraits, add an OpenAI API key " +
+                "(platform.openai.com → API keys; pictures are billed to your OpenAI account). With it, your realistic " +
+                "avatar keeps your real face. Without it, Spark uses the free Pollinations service, which is slower, " +
+                "limited and can't keep your likeness."
+        )
+        field("OpenAI API key (optional)", settings.openAiApiKey, "sk-…", secret = true) { settings.openAiApiKey = it }
+        val imageModel = modelField("OpenAI picture model", com.spark.companion.core.ModelListStore.OPENAI_IMAGES, settings.openAiImageModel) { settings.openAiImageModel = it }
+        val refreshClaude = modelRefresh
+        modelRefresh = {
+            refreshClaude()
+            imageModel.set(settings.openAiImageModel)
         }
-        content.addView(imageProviders)
-        note("Restyling one of your own photos always uses Gemini (the free image maker can only create from a description).")
+        note("Flare is the fast model; Sunburst draws more detail. The list comes from your key and updates when you tap Refresh model list.")
 
         section("AVATAR", "Pick who Spark appears as, or create your own from a photo or a description.")
         action("Open Avatar Studio", Ui.ACCENT, Ui.BG) {
@@ -306,7 +264,7 @@ class SettingsActivity : Activity() {
             })
         }
         content.addView(boxes)
-        note("Main language now: the first one you ticked. For the best accent, install voices for your languages in the phone's Settings → Text-to-speech, or use Gemini voices below.")
+        note("Main language now: the first one you ticked. For the best accent, install voices for your languages in the phone's Settings → Text-to-speech.")
         action("Phone text-to-speech settings") {
             try {
                 startActivity(Intent("com.android.settings.TTS_SETTINGS"))
@@ -323,19 +281,6 @@ class SettingsActivity : Activity() {
             "Keep the conversation going", "Listen again after each reply until you stop talking",
             settings.continuous
         ) { settings.continuous = it }
-        note("Voice: the phone's own voices are free and instant. Gemini natural voices sound far more human, carry emotion and handle every language, but take a moment longer and use your Gemini API quota.")
-        val engines = android.widget.RadioGroup(this).apply { orientation = android.widget.RadioGroup.VERTICAL }
-        for ((key, label) in listOf("phone" to "Phone voice", "gemini" to "Gemini natural voice")) {
-            engines.addView(android.widget.RadioButton(this).apply {
-                id = View.generateViewId()
-                text = label
-                setTextColor(Ui.TEXT)
-                textSize = 15.5f
-                isChecked = settings.voiceEngine == key
-                setOnCheckedChangeListener { _, checked -> if (checked) settings.voiceEngine = key }
-            })
-        }
-        content.addView(engines)
         action("Hear my avatar") {
             save()
             engine.testVoice()
@@ -394,14 +339,6 @@ class SettingsActivity : Activity() {
             scope.launch {
                 toast(if (engine.testDesktopLink()) "Connected to SPARK on your computer." else "Couldn't reach that address.")
             }
-        }
-
-        section("ADVANCED", "Gemini model names, in case Google renames them.")
-        val imageModel = modelField("Image model (avatar creation)", com.spark.companion.core.ModelListStore.GEMINI_IMAGE, settings.imageModel) { settings.imageModel = it }
-        val ttsModel = modelField("Voice model (natural voices)", com.spark.companion.core.ModelListStore.GEMINI_TTS, settings.ttsModel) { settings.ttsModel = it }
-        mediaModelRefresh = {
-            imageModel.set(settings.imageModel)
-            ttsModel.set(settings.ttsModel)
         }
 
         section(

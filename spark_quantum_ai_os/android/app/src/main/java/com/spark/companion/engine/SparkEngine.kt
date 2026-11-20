@@ -6,11 +6,9 @@ import android.content.pm.PackageManager
 import com.spark.companion.brain.ActionPolicy
 import com.spark.companion.brain.Agent
 import com.spark.companion.brain.ConfirmRequest
-import com.spark.companion.brain.GeminiClient
 import com.spark.companion.brain.Msg
-import com.spark.companion.brain.OpenAiCompatClient
-import com.spark.companion.brain.RoutingLlm
 import com.spark.companion.brain.Greetings
+import com.spark.companion.brain.ClaudeClient
 import com.spark.companion.brain.LlmException
 import com.spark.companion.brain.Languages
 import com.spark.companion.brain.Mood
@@ -27,7 +25,6 @@ import com.spark.companion.phone.SparkAccessibilityService
 import com.spark.companion.ui.OverlayController
 import com.spark.companion.ui.avatar.AvatarRig
 import com.spark.companion.ui.avatar.AvatarRepository
-import com.spark.companion.voice.NaturalVoice
 import com.spark.companion.voice.Speaker
 import com.spark.companion.voice.SpeechInput
 import kotlinx.coroutines.CompletableDeferred
@@ -65,31 +62,9 @@ class SparkEngine(private val context: Context) {
     private val link = SparkLink({ settings.serverUrl }, { settings.serverToken })
     private val n8n = com.spark.companion.brain.N8n({ settings.n8nUrl }, { settings.n8nAuth })
     private val tools = PhoneTools(context, settings, memory, link, n8n) { uiVisible.value }
-    private val llm = RoutingLlm(
-        provider = { settings.chatProvider },
-        clients = mapOf(
-            RoutingLlm.GEMINI to GeminiClient({ settings.apiKey }, { settings.model }) { settings.model = it },
-            RoutingLlm.GROQ to OpenAiCompatClient.groq({ settings.groqApiKey }, { settings.groqModel })
-                .apply { onModelSwitch = { settings.groqModel = it } },
-            RoutingLlm.OPENROUTER to OpenAiCompatClient.openRouter({ settings.openRouterApiKey }, { settings.openRouterModel })
-                .apply { onModelSwitch = { settings.openRouterModel = it } },
-            RoutingLlm.OLLAMA to OpenAiCompatClient.ollama({ settings.ollamaUrl }, { settings.ollamaModel })
-                .apply { onModelSwitch = { settings.ollamaModel = it } },
-            RoutingLlm.CUSTOM to OpenAiCompatClient.custom({ settings.customUrl }, { settings.customApiKey }, { settings.customModel })
-                .apply { onModelSwitch = { settings.customModel = it } },
-            RoutingLlm.FREE to OpenAiCompatClient.free(),
-        ),
-        configured = { key ->
-            when (key) {
-                RoutingLlm.GEMINI -> settings.apiKey.isNotBlank()
-                RoutingLlm.GROQ -> settings.groqApiKey.isNotBlank()
-                RoutingLlm.OPENROUTER -> settings.openRouterApiKey.isNotBlank()
-                RoutingLlm.OLLAMA -> settings.ollamaUrl.isNotBlank()
-                RoutingLlm.CUSTOM -> settings.customUrl.isNotBlank()
-                else -> true
-            }
-        },
-    )
+    /** Claude is Spark's only brain (Anthropic's official SDK). */
+    val claude = ClaudeClient({ settings.claudeApiKey }, { settings.claudeModel }) { settings.claudeModel = it }
+    private val llm: com.spark.companion.brain.Llm = claude
     private val agent = Agent(llm, tools)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -131,12 +106,10 @@ class SparkEngine(private val context: Context) {
     /** The avatar Spark currently appears as. */
     val avatar = MutableStateFlow(avatars.get(settings.avatar))
 
-    private val naturalVoice = NaturalVoice({ settings.apiKey }, { settings.ttsModel }) { settings.ttsModel = it }
 
     /** The language the conversation is in right now; listening follows it. */
     private var talkLanguage: String = settings.primaryLanguage
     private val missingVoiceNoted = HashSet<String>()
-    private var naturalVoiceFailedNoted = false
 
     private val _pending = MutableStateFlow<PendingConfirm?>(null)
     val pendingConfirm: StateFlow<PendingConfirm?> = _pending
@@ -161,7 +134,7 @@ class SparkEngine(private val context: Context) {
             if (missingVoiceNoted.add(tag)) {
                 postAssistant(
                     "This phone has no ${Languages.name(tag)} voice installed, so I'll read it with the default voice. " +
-                        "Add it under Settings → Text-to-speech, or turn on Gemini voices in Spark settings."
+                        "Add it under Settings → Text-to-speech."
                 )
             }
         }
@@ -260,7 +233,7 @@ class SparkEngine(private val context: Context) {
         }
     }
 
-suspend fun testGemini(): String = try {
+suspend fun testBrain(): String = try {
         val reply = llm.generate(
             "Reply with one short friendly sentence.",
             listOf(Msg.User("Say hello to confirm you are working.")),
@@ -285,70 +258,42 @@ suspend fun testGemini(): String = try {
      * available one; with [pickBest], every provider gets its best model.
      */
     suspend fun refreshModelLists(pickBest: Boolean = false): ModelRefresh {
-        val cat = com.spark.companion.brain.ModelCatalog
-        val listing = com.spark.companion.brain.ModelListing
-        val store = com.spark.companion.core.ModelListStore
-        val lines = ArrayList<String>()
-        val added = ArrayList<String>()
         val now = System.currentTimeMillis()
-
-        fun save(label: String, key: String, fresh: List<Pair<String, String>>, current: String, choose: (String) -> Unit) {
-            if (fresh.isEmpty()) {
-                lines += "$label: no models offered"
-                return
-            }
-            val merge = listing.merge(modelLists.get(key), fresh, now)
-            modelLists.put(key, merge.list)
-            added += merge.added.map { "$label: $it" }
-            val best = fresh.first().first
+        if (settings.claudeApiKey.isBlank()) return ModelRefresh("Add your Claude API key first." + refreshImageModels(now), emptyList())
+        return try {
+            val fresh = claude.listModels()
+            if (fresh.isEmpty()) return ModelRefresh("Claude didn't list any models for this key.", emptyList())
+            val merge = com.spark.companion.brain.ModelListing.merge(modelLists.get(com.spark.companion.core.ModelListStore.CLAUDE), fresh.map { it to "" }, now)
+            modelLists.put(com.spark.companion.core.ModelListStore.CLAUDE, merge.list)
+            modelLists.lastRefresh = now
+            val current = settings.claudeModel
             val note = when {
-                pickBest && current != best -> { choose(best); " → using $best" }
-                current.isNotBlank() && current !in merge.list.ids -> { choose(best); " → $current is gone, using $best" }
+                pickBest && current != fresh.first() -> { settings.claudeModel = fresh.first(); " → using ${fresh.first()}" }
+                current !in fresh -> { settings.claudeModel = fresh.first(); " → $current isn't available, using ${fresh.first()}" }
                 else -> ""
             }
-            val fresher = if (merge.added.isNotEmpty()) ", ${merge.added.size} new" else ""
-            lines += "$label: ${fresh.size} models$fresher$note"
+            val added = merge.added.map { "Claude: $it" }
+            val pictures = refreshImageModels(now)
+            val head = if (added.isEmpty()) "" else "New models: ${added.joinToString(", ")}\n"
+            ModelRefresh(head + "Claude: ${fresh.size} models$note" + pictures, added)
+        } catch (e: LlmException) {
+            ModelRefresh("Claude: ${e.message}", emptyList())
         }
+    }
 
-        suspend fun guarded(label: String, block: suspend () -> Unit) {
-            try {
-                block()
-            } catch (e: LlmException) {
-                lines += "$label: ${e.message}"
-            }
+    /** Updates the OpenAI picture-model list when an OpenAI key is set; returns a summary line. */
+    private suspend fun refreshImageModels(now: Long): String {
+        if (settings.openAiApiKey.isBlank()) return ""
+        return try {
+            val ids = com.spark.companion.brain.OpenAiImageGen({ settings.openAiApiKey }, { settings.openAiImageModel }).availableModels()
+            if (ids.isEmpty()) return "\nOpenAI: no image models for this key"
+            val store = com.spark.companion.core.ModelListStore.OPENAI_IMAGES
+            modelLists.put(store, com.spark.companion.brain.ModelListing.merge(modelLists.get(store), ids.map { it to "" }, now).list)
+            if (settings.openAiImageModel !in ids) settings.openAiImageModel = ids.first()
+            "\nOpenAI pictures: ${ids.size} models"
+        } catch (e: LlmException) {
+            "\nOpenAI: ${e.message}"
         }
-
-        if (settings.apiKey.isNotBlank()) guarded("Gemini") {
-            val all = cat.listGemini(settings.apiKey)
-            save("Gemini chat", store.GEMINI_CHAT, cat.geminiChatModels(all).map { it to "" }, settings.model) { settings.model = it }
-            save("Gemini voice", store.GEMINI_TTS, cat.geminiTtsModels(all).map { it to "" }, settings.ttsModel) { settings.ttsModel = it }
-            save("Gemini images", store.GEMINI_IMAGE, cat.geminiImageModels(all).map { it to "" }, settings.imageModel) { settings.imageModel = it }
-        }
-        if (settings.groqApiKey.isNotBlank()) guarded("Groq") {
-            val all = cat.groqModels(cat.listOpenAi(cat.GROQ_MODELS_URL, settings.groqApiKey, "Groq"))
-            save("Groq", store.GROQ, all.map { it.id to cat.tags(it) }, settings.groqModel) { settings.groqModel = it }
-        }
-        // OpenRouter lists its models without a key, so its drop-down works before one is added.
-        guarded("OpenRouter") {
-            val all = cat.openRouterModels(cat.listOpenAi(cat.OPENROUTER_MODELS_URL, settings.openRouterApiKey, "OpenRouter"))
-            val best = cat.pickOpenRouter(all)
-            val ordered = all.sortedBy { if (it.id == best) 0 else 1 }
-            save("OpenRouter", store.OPENROUTER, ordered.map { it.id to cat.tags(it) }, settings.openRouterModel) { settings.openRouterModel = it }
-        }
-        if (settings.ollamaUrl.isNotBlank()) guarded("Ollama") {
-            val url = cat.modelsUrlFor(OpenAiCompatClient.chatEndpoint(settings.ollamaUrl))
-            val all = cat.localModels(cat.listOpenAi(url, "", "Ollama"))
-            save("Ollama", store.OLLAMA, all.map { it.id to "" }, settings.ollamaModel) { settings.ollamaModel = it }
-        }
-        if (settings.customUrl.isNotBlank()) guarded("Your server") {
-            val url = cat.modelsUrlFor(OpenAiCompatClient.chatEndpoint(settings.customUrl))
-            val all = cat.localModels(cat.listOpenAi(url, settings.customApiKey, "Your server"))
-            save("Your server", store.CUSTOM, all.map { it.id to "" }, settings.customModel) { settings.customModel = it }
-        }
-        modelLists.lastRefresh = now
-        val head = if (added.isEmpty()) "" else "New models: ${added.take(6).joinToString(", ")}" +
-            (if (added.size > 6) " and ${added.size - 6} more" else "") + "\n"
-        return ModelRefresh(head + lines.joinToString("\n"), added)
     }
 
     /** Refreshes the model lists in the background when they are older than [maxAgeMs]. */
@@ -667,18 +612,6 @@ suspend fun testGemini(): String = try {
         val onLevel: (Float) -> Unit = { _level.value = it }
         val onMouth: (com.spark.companion.brain.MouthShape?) -> Unit = { _mouth.value = it }
         try {
-            if (settings.voiceEngine == "gemini" && settings.apiKey.isNotBlank()) {
-                try {
-                    val pcm = naturalVoice.synthesize(SpeechText.forSpeech(clean), voice.geminiVoice, _mood.value)
-                    naturalVoice.play(pcm, onLevel, onMouth)
-                    return
-                } catch (e: LlmException) {
-                    if (!naturalVoiceFailedNoted) {
-                        naturalVoiceFailedNoted = true
-                        post(false, "Gemini voice didn't work (${e.message}), so I'm using the phone's voice for now.")
-                    }
-                }
-            }
             speaker.speak(clean, talkLanguage, onLevel, voice.pitch, voice.rate, onMouth)
         } finally {
             _level.value = 0f
@@ -725,7 +658,7 @@ suspend fun testGemini(): String = try {
     /**
      * Full-body avatars look like real people: if the current one has no
      * realistic picture of its outfit yet, one is made in the background
-     * (free image service; Gemini first when a face photo should be kept).
+     * (free image service; a face photo is swapped on afterwards).
      */
     fun ensureRealisticLook(force: Boolean = false) {
         val profile = avatar.value
@@ -739,18 +672,12 @@ suspend fun testGemini(): String = try {
             _lookStatus.value = "Creating ${profile.name}'s realistic look…"
             try {
                 val portrait = withContext(Dispatchers.IO) { profile.portrait?.let { AvatarRepository.loadPortrait(it) } }
-                val free = com.spark.companion.brain.PollinationsImageGen(
-                    com.spark.companion.brain.PollinationsImageGen.TALL_WIDTH, com.spark.companion.brain.PollinationsImageGen.TALL_HEIGHT,
-                )
-                val gemini = com.spark.companion.brain.GeminiImageGen(
-                    { settings.apiKey }, { settings.imageModel }, onModelSwitch = { settings.imageModel = it }, aspectRatio = "9:16",
-                )
-                val (result, swapped) = try {
-                    if (portrait == null || settings.apiKey.isBlank()) throw LlmException("skip")
-                    com.spark.companion.ui.avatar.RealBody.create(gemini, spec, portrait) to false
-                } catch (e: LlmException) {
-                    com.spark.companion.ui.avatar.RealBody.create(free, spec, null) to (portrait != null)
-                }
+                // OpenAI (with a key) draws the person with the user's own face;
+                // the free service draws someone else, and the face is swapped on.
+                val maker = settings.imageMaker(com.spark.companion.brain.OpenAiImageGen.TALL)
+                val likeness = maker.canUsePhoto && portrait != null
+                val result = com.spark.companion.ui.avatar.RealBody.create(maker, spec, if (likeness) portrait else null)
+                val swapped = portrait != null && !likeness
                 withContext(Dispatchers.IO) { avatars.saveRealBody(profile, result, swapped, spec.outfitId) }
                 com.spark.companion.ui.avatar.AvatarView.clearCache()
                 avatar.value = avatars.get(settings.avatar)

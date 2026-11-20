@@ -18,7 +18,7 @@ data class MouthShape(val open: Float, val wide: Float, val round: Float) {
  * Turns speech into mouth shapes so the lips move like real talking rather
  * than just flapping with loudness.
  *
- * - For Gemini voices the audio itself is analysed: loudness opens the jaw,
+ * - When raw speech audio is available it is analysed: loudness opens the jaw,
  *   hiss-like sound (many zero crossings: s, sh, f, ee) stretches the lips,
  *   and bass-heavy vowels (oo, o, w) round them; near-silence closes the lips
  *   (m, b, p and pauses).

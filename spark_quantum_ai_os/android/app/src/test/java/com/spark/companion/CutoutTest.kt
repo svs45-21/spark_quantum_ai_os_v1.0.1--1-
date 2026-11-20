@@ -38,4 +38,15 @@ class CutoutTest {
         val out = Cutout.remove(scene(), 40, 60)
         assertArrayEquals(intArrayOf(12, 10, 28, 51), Cutout.bounds(out, 40, 60, minAlpha = 1))
     }
+
+    @Test fun clearsEnclosedGapsBetweenTheLegs() {
+        val w = 40; val h = 60
+        val px = IntArray(w * h) { grey }
+        // Two legs joined at the top: the grey gap between them touches no border.
+        for (y in 20..58) for (x in 10..29) px[y * w + x] = white
+        for (y in 30..50) for (x in 16..23) px[y * w + x] = grey
+        val out = Cutout.remove(px, w, h)
+        assertEquals("gap between the legs is cleared", 0, out[40 * w + 20] ushr 24)
+        assertEquals(255, out[40 * w + 12] ushr 24)
+    }
 }

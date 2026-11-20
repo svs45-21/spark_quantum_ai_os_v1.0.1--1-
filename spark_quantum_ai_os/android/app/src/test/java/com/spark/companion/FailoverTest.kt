@@ -6,7 +6,6 @@ import com.spark.companion.brain.Llm
 import com.spark.companion.brain.ModelSwitch
 import com.spark.companion.brain.Msg
 import com.spark.companion.brain.ProviderBusyException
-import com.spark.companion.brain.RoutingLlm
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.junit.Assert.assertEquals
@@ -34,48 +33,6 @@ class FailoverTest {
     fun allBusyReportsBusy() {
         runBlocking {
             ModelSwitch({ "a" }).run(discover = { null }, alternatives = { listOf("b", "c") }) { throw ProviderBusyException("busy") }
-        }
-    }
-
-    private class Fake(val name: String, val fail: Boolean) : Llm {
-        var calls = 0
-        override suspend fun generate(system: String, history: List<Msg>, tools: JSONArray): LlmReply {
-            calls++
-            if (fail) throw ProviderBusyException("$name busy")
-            return LlmReply(Msg.Assistant(name, emptyList()), name, emptyList())
-        }
-    }
-
-    @Test fun routingFallsBackToOtherProvidersThenTheFreeService() = runBlocking {
-        val gemini = Fake("gemini", true)
-        val groq = Fake("groq", true)
-        val openrouter = Fake("openrouter", false)
-        val free = Fake("free", false)
-        var used = ""
-        val llm = RoutingLlm(
-            { RoutingLlm.GEMINI },
-            mapOf(RoutingLlm.GEMINI to gemini, RoutingLlm.GROQ to groq, RoutingLlm.OPENROUTER to openrouter, RoutingLlm.FREE to free),
-            configured = { it != RoutingLlm.OLLAMA },
-            onFallback = { used = it },
-        )
-        assertEquals("openrouter", llm.generate("s", listOf(Msg.User("hi")), JSONArray()).text)
-        assertEquals("openrouter", used)
-        assertEquals(0, free.calls)
-        assertEquals(
-            listOf("groq", "gemini", "openrouter", "free"),
-            RoutingLlm.fallbackOrder("groq", listOf("gemini", "groq", "openrouter", "free"), { true }),
-        )
-        assertEquals(
-            "providers without a key are skipped",
-            listOf("gemini", "free"),
-            RoutingLlm.fallbackOrder("gemini", listOf("gemini", "groq", "free"), { it != "groq" }),
-        )
-    }
-
-    @Test(expected = LlmException::class)
-    fun everythingFailingReportsTheChosenProvidersError() {
-        runBlocking {
-            RoutingLlm({ "gemini" }, mapOf("gemini" to Fake("gemini", true), "free" to Fake("free", true))).generate("s", emptyList(), JSONArray())
         }
     }
 }

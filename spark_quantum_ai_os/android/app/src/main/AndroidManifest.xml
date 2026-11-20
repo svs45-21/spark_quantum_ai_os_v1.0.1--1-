@@ -61,7 +61,7 @@
     </queries>
 
     <!-- usesCleartextTraffic: only the optional link to a SPARK server on your
-         own network uses plain http. Gemini is always called over https. -->
+         own network uses plain http. Claude is always called over https. -->
     <application
         android:name=".SparkApp"
         android:allowBackup="false"
