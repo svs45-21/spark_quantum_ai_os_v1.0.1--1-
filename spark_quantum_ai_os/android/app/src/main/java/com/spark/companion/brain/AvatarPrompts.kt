@@ -26,6 +26,10 @@ object AvatarPrompts {
             "even soft lighting on the face, simple plain dark background, no text, no logos, " +
             "no hands or objects in front of the face."
 
+    fun convertPrompt(style: ImageStyle): String =
+        "Recreate the person in this photo as ${style.look}. Keep their likeness: face shape, " +
+            "skin tone, hairstyle and hair colour, eye colour and distinctive features. $FRAMING"
+
     fun describePrompt(description: String, style: ImageStyle): String =
         "Create ${style.look} of this character: ${description.trim()}. $FRAMING"
 }

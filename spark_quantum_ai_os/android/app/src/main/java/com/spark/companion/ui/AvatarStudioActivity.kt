@@ -20,8 +20,6 @@ import android.widget.TextView
 import android.widget.Toast
 import com.spark.companion.SparkApp
 import com.spark.companion.brain.AvatarPrompts
-import com.spark.companion.brain.ImageGen
-import com.spark.companion.brain.PollinationsImageGen
 import com.spark.companion.brain.LlmException
 import com.spark.companion.engine.Phase
 import com.spark.companion.ui.avatar.AvatarProfile
@@ -257,7 +255,7 @@ class AvatarStudioActivity : Activity() {
             photo = null
             show(Screen.DESCRIBE)
         }
-        note("Avatars from a description and realistic bodies are drawn by the free Pollinations image service (Claude doesn't make pictures). Your own photos stay on the phone.")
+        note("Claude doesn't make pictures: avatars from a description and realistic bodies are drawn by OpenAI if you add an OpenAI key in Spark settings → Pictures (your photo is then sent to OpenAI to keep your likeness), otherwise by the free Pollinations service. Photos used as they are stay on the phone.")
     }
 
     private fun avatarRow(profile: AvatarProfile, selected: Boolean): View {
@@ -417,6 +415,13 @@ class AvatarStudioActivity : Activity() {
         note(if (faceFound) "Face found, straightened and centred. On the next screen the eye and mouth dots are already placed — just check them."
         else "I couldn't find a face in this picture, so on the next screen you'll place the eye and mouth dots yourself. A clear, front-facing face works best.")
         button("Use this photo as it is", primary = true) { show(Screen.EDIT) }
+        if (engine.settings.openAiApiKey.isNotBlank()) {
+            heading("OR RESTYLE IT WITH AI")
+            note("OpenAI redraws your photo in the style you pick, keeping your likeness. Takes 20–60 seconds and uses your OpenAI credit. The photo is sent to OpenAI.")
+            for (style in AvatarPrompts.ImageStyle.values()) {
+                button(style.label) { generate(AvatarPrompts.convertPrompt(style), photo) }
+            }
+        }
         button("Choose a different photo") { pickPhoto() }
     }
 
@@ -425,7 +430,8 @@ class AvatarStudioActivity : Activity() {
     private fun buildDescribe() {
         title("Describe your avatar")
         note("Who should Spark look like? Describe the face, age, hair, clothes and vibe.")
-        note("Drawn by the free image maker (Pollinations) — no key, no quota.")
+        note(if (engine.settings.openAiApiKey.isNotBlank()) "Drawn by OpenAI with your key (uses your OpenAI credit)."
+            else "Drawn by the free image maker (Pollinations). For better pictures, add an OpenAI key in Spark settings → Pictures.")
         field("e.g. a cheerful woman in her twenties with curly black hair, a yellow kurta and a warm smile", description, multiline = true) {
             description = it
         }
@@ -438,10 +444,10 @@ class AvatarStudioActivity : Activity() {
         }
     }
 
-    /** Draws a portrait from a description with the free image service, then moves to the editor. */
+    /** Draws a portrait (OpenAI with a key, otherwise the free service), then moves to the editor. */
     private fun generate(prompt: String, source: Bitmap?) {
-        val gen: ImageGen = PollinationsImageGen()
-        working("Drawing your avatar (free)…") {
+        val gen = engine.settings.imageMaker()
+        working("${gen.label.replaceFirstChar { it.uppercase() }} is drawing your avatar…") {
             val bytes = withContext(Dispatchers.Default) { source?.let { FaceTools.jpeg(it) } }
             val image = gen.generate(prompt, bytes)
             val bitmap = withContext(Dispatchers.Default) { FaceTools.decode(image) }
@@ -820,12 +826,14 @@ class AvatarStudioActivity : Activity() {
     private fun startReal(facePhoto: Bitmap?) {
         val spec = body ?: return
         if (realJob?.isActive == true) return
-        val free = PollinationsImageGen(PollinationsImageGen.TALL_WIDTH, PollinationsImageGen.TALL_HEIGHT)
+        val maker = engine.settings.imageMaker(com.spark.companion.brain.OpenAiImageGen.TALL)
+        val likeness = maker.canUsePhoto && facePhoto != null
         realError = null
         realJob = scope.launch {
             try {
-                val result = com.spark.companion.ui.avatar.RealBody.create(free, spec, null)
-                val swapped = facePhoto != null
+                // With OpenAI the person is drawn with your face; otherwise your face is swapped on.
+                val result = com.spark.companion.ui.avatar.RealBody.create(maker, spec, if (likeness) facePhoto else null)
+                val swapped = facePhoto != null && !likeness
                 pendingReal = result
                 pendingRealSwap = swapped
                 pendingRealOutfit = spec.outfitId

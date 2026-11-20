@@ -18,5 +18,6 @@ class ModelListStore(context: Context) {
 
     companion object {
         const val CLAUDE = "claude"
+        const val OPENAI_IMAGES = "openai_images"
     }
 }

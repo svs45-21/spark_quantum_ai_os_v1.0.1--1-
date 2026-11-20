@@ -12,6 +12,7 @@ class Settings(context: Context) {
 
     // Decrypting hits the Keystore, so secrets are cached after first read.
     @Volatile private var claudeKeyCache: String? = null
+    @Volatile private var openAiKeyCache: String? = null
     @Volatile private var tokenCache: String? = null
     @Volatile private var n8nAuthCache: String? = null
 
@@ -36,6 +37,29 @@ class Settings(context: Context) {
             claudeKeyCache = clean
             prefs.edit().putString("claude_key", if (clean.isEmpty()) null else SecretStore.encrypt(clean)).apply()
         }
+
+    /** Optional OpenAI API key, used only to make pictures (GPT Image). Stored encrypted. */
+    var openAiApiKey: String
+        get() = openAiKeyCache ?: SecretStore.decrypt(prefs.getString("openai_key", null)).also { openAiKeyCache = it }
+        set(value) {
+            val clean = value.trim()
+            openAiKeyCache = clean
+            prefs.edit().putString("openai_key", if (clean.isEmpty()) null else SecretStore.encrypt(clean)).apply()
+        }
+
+    /** The OpenAI image model (picked from the key's list). */
+    var openAiImageModel: String
+        get() = prefs.getString("openai_image_model", null)?.takeIf { it.isNotBlank() } ?: com.spark.companion.brain.OpenAiImageGen.DEFAULT_MODEL
+        set(value) = prefs.edit().putString("openai_image_model", value.trim()).apply()
+
+    /** Who draws pictures: OpenAI with a key, otherwise the free service. */
+    fun imageMaker(size: String = com.spark.companion.brain.OpenAiImageGen.SQUARE): com.spark.companion.brain.ImageMaker {
+        val free = if (size == com.spark.companion.brain.OpenAiImageGen.TALL) {
+            com.spark.companion.brain.PollinationsImageGen(com.spark.companion.brain.PollinationsImageGen.TALL_WIDTH, com.spark.companion.brain.PollinationsImageGen.TALL_HEIGHT)
+        } else com.spark.companion.brain.PollinationsImageGen()
+        val openAi = com.spark.companion.brain.OpenAiImageGen({ openAiApiKey }, { openAiImageModel }, { openAiImageModel = it }, size)
+        return com.spark.companion.brain.ImageMaker({ openAiApiKey }, openAi, free)
+    }
 
     /** The Claude model Spark talks with. */
     var claudeModel: String

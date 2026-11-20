@@ -12,7 +12,7 @@ Spark appears as an **animated avatar**. Pick Nova (a sleek robot), Mira (a warm
 
 Each has **50 outfits**: everyday wear, office suits, sarees, lehengas, anarkalis, kurtas, sherwanis, uniforms, sportswear, party wear, winter coats and more, plus hair styles, hair, skin and eye colours, and beards. Change them under Avatar Studio → **Change outfit & look**.
 
-**Realistic or illustrated:** in Avatar Studio → Change outfit & look, choose **Realistic (photo)** and tap **Create realistic photo**. An image model makes a real-looking person, head to toe, in that outfit. The plain backdrop is removed so they stand in open space. Their face then blinks, talks with real mouth shapes and shows every feeling, and the body breathes, sways and nods. The picture comes from the free Pollinations image service (no key; Claude doesn't make images). With your own photo, your face is swapped onto the generated body. **Illustrated** avatars are drawn instead, and can also wave and gesture with their arms.
+**Realistic or illustrated:** in Avatar Studio → Change outfit & look, choose **Realistic (photo)** and tap **Create realistic photo**. An image model makes a real-looking person, head to toe, in that outfit. The plain backdrop is removed so they stand in open space. Their face then blinks, talks with real mouth shapes and shows every feeling, and the body breathes, sways and nods. The picture comes from OpenAI when you've added an OpenAI key (your photo is used as a reference so the person has your face), or otherwise from the free Pollinations service, with your face swapped on. **Illustrated** avatars are drawn instead, and can also wave and gesture with their arms.
 
 **Put your own face on a body:** Avatar Studio → **Full-body avatar with my face**, pick female or male, and choose a photo. Your face is found, lined up with the body's head and blended in with soft edges; the skin and hair colours are matched to your photo. Your face still blinks, talks and shows every feeling.
 
@@ -50,7 +50,7 @@ Spark thinks with **Claude** by Anthropic, through Anthropic's official Java SDK
 - **Model:** Claude Opus 5.5 by default, Anthropic's recommended model. The drop-down lists the models your key can use and updates by itself, so new Claude models appear (marked NEW).
 - **Busy or overloaded:** if the chosen model is overloaded or rate-limited, Spark answers with the next Claude model for a few minutes, then goes back.
 - **Refusals:** on models that support it, Anthropic's server-side fallback lets another model answer when a safety check declines a request, instead of failing.
-- **Pictures:** Claude doesn't generate images, so realistic bodies and avatars made from a description come from the free Pollinations image service (no key).
+- **Pictures:** Claude doesn't generate images. Add an optional **OpenAI API key** in **Settings → Pictures** (platform.openai.com; billed to your OpenAI account) and OpenAI's GPT Image models draw realistic bodies and AI-styled portraits, keeping your real face when you give a photo. Without it, Spark uses the free Pollinations service, which is slower, rate-limited, may ask for its own key, and can't keep your likeness (your face is swapped on instead).
 - **Voice:** Spark speaks with the phone's own text-to-speech voices.
 
 ### n8n workflows
@@ -180,7 +180,7 @@ The agent loop sends the conversation and tool list to Claude, runs the function
 - The wake word uses Android's speech recogniser in a loop, not a dedicated low-power hotword chip, so it costs some battery. On phones without offline recognition (most phones before Android 12), the recogniser may beep each time it restarts. In that case turn the wake word off from the chip under the avatar and tap the avatar instead.
 - Lip-sync follows the real voice volume where the phone allows it; otherwise it follows word timing.
 - Photo avatars animate a single picture by warping it. The face is found and straightened automatically (ML Kit, on-device). They look best with a front-facing face, eyes open and mouth closed; a face turned far to the side can't be straightened in 2D.
-- Avatar pictures come from the free Pollinations image service, which can be busy; if it fails, try again in a moment.
+- Without an OpenAI key, avatar pictures come from the free Pollinations service, which is rate-limited and may require its own key; if it fails, try again later or add an OpenAI key in Settings → Pictures.
 - Claude usage is billed to your Anthropic account. Spark uses Claude Opus 5.5 at medium effort by default; pick another model in Settings → Claude if you prefer.
 - Realistic avatars animate the face, breathing, head and posture; the arms stay where the photo has them. Illustrated avatars move their arms too. The face swap uses the front of your face only: hair and background from the photo are replaced by the avatar's own hair.
 - Games, videos and some banking apps hide their content from accessibility services, so Spark can't read or tap inside them.

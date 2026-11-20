@@ -223,6 +223,22 @@ class SettingsActivity : Activity() {
             }
         }
 
+        section(
+            "PICTURES",
+            "Claude doesn't make pictures. For realistic avatars and AI-styled portraits, add an OpenAI API key " +
+                "(platform.openai.com → API keys; pictures are billed to your OpenAI account). With it, your realistic " +
+                "avatar keeps your real face. Without it, Spark uses the free Pollinations service, which is slower, " +
+                "limited and can't keep your likeness."
+        )
+        field("OpenAI API key (optional)", settings.openAiApiKey, "sk-…", secret = true) { settings.openAiApiKey = it }
+        val imageModel = modelField("OpenAI picture model", com.spark.companion.core.ModelListStore.OPENAI_IMAGES, settings.openAiImageModel) { settings.openAiImageModel = it }
+        val refreshClaude = modelRefresh
+        modelRefresh = {
+            refreshClaude()
+            imageModel.set(settings.openAiImageModel)
+        }
+        note("Flare is the fast model; Sunburst draws more detail. The list comes from your key and updates when you tap Refresh model list.")
+
         section("AVATAR", "Pick who Spark appears as, or create your own from a photo or a description.")
         action("Open Avatar Studio", Ui.ACCENT, Ui.BG) {
             startActivity(Intent(this, AvatarStudioActivity::class.java))

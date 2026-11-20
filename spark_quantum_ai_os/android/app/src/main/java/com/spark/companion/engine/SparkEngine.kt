@@ -258,8 +258,8 @@ suspend fun testBrain(): String = try {
      * available one; with [pickBest], every provider gets its best model.
      */
     suspend fun refreshModelLists(pickBest: Boolean = false): ModelRefresh {
-        if (settings.claudeApiKey.isBlank()) return ModelRefresh("Add your Claude API key first.", emptyList())
         val now = System.currentTimeMillis()
+        if (settings.claudeApiKey.isBlank()) return ModelRefresh("Add your Claude API key first." + refreshImageModels(now), emptyList())
         return try {
             val fresh = claude.listModels()
             if (fresh.isEmpty()) return ModelRefresh("Claude didn't list any models for this key.", emptyList())
@@ -273,10 +273,26 @@ suspend fun testBrain(): String = try {
                 else -> ""
             }
             val added = merge.added.map { "Claude: $it" }
+            val pictures = refreshImageModels(now)
             val head = if (added.isEmpty()) "" else "New models: ${added.joinToString(", ")}\n"
-            ModelRefresh(head + "Claude: ${fresh.size} models$note", added)
+            ModelRefresh(head + "Claude: ${fresh.size} models$note" + pictures, added)
         } catch (e: LlmException) {
             ModelRefresh("Claude: ${e.message}", emptyList())
+        }
+    }
+
+    /** Updates the OpenAI picture-model list when an OpenAI key is set; returns a summary line. */
+    private suspend fun refreshImageModels(now: Long): String {
+        if (settings.openAiApiKey.isBlank()) return ""
+        return try {
+            val ids = com.spark.companion.brain.OpenAiImageGen({ settings.openAiApiKey }, { settings.openAiImageModel }).availableModels()
+            if (ids.isEmpty()) return "\nOpenAI: no image models for this key"
+            val store = com.spark.companion.core.ModelListStore.OPENAI_IMAGES
+            modelLists.put(store, com.spark.companion.brain.ModelListing.merge(modelLists.get(store), ids.map { it to "" }, now).list)
+            if (settings.openAiImageModel !in ids) settings.openAiImageModel = ids.first()
+            "\nOpenAI pictures: ${ids.size} models"
+        } catch (e: LlmException) {
+            "\nOpenAI: ${e.message}"
         }
     }
 
@@ -656,11 +672,12 @@ suspend fun testBrain(): String = try {
             _lookStatus.value = "Creating ${profile.name}'s realistic look…"
             try {
                 val portrait = withContext(Dispatchers.IO) { profile.portrait?.let { AvatarRepository.loadPortrait(it) } }
-                val free = com.spark.companion.brain.PollinationsImageGen(
-                    com.spark.companion.brain.PollinationsImageGen.TALL_WIDTH, com.spark.companion.brain.PollinationsImageGen.TALL_HEIGHT,
-                )
-                val result = com.spark.companion.ui.avatar.RealBody.create(free, spec, null)
-                val swapped = portrait != null
+                // OpenAI (with a key) draws the person with the user's own face;
+                // the free service draws someone else, and the face is swapped on.
+                val maker = settings.imageMaker(com.spark.companion.brain.OpenAiImageGen.TALL)
+                val likeness = maker.canUsePhoto && portrait != null
+                val result = com.spark.companion.ui.avatar.RealBody.create(maker, spec, if (likeness) portrait else null)
+                val swapped = portrait != null && !likeness
                 withContext(Dispatchers.IO) { avatars.saveRealBody(profile, result, swapped, spec.outfitId) }
                 com.spark.companion.ui.avatar.AvatarView.clearCache()
                 avatar.value = avatars.get(settings.avatar)
